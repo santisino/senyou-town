@@ -1,0 +1,3 @@
+// Small, consistent UI glyphs; world art remains editable Blender geometry.
+const paths={home:'M3 10 12 3l9 7M5 9v12h5v-7h4v7h5V9',map:'m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Zm6-2v16m6-14v16',people:'M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm9-1a3 3 0 1 0 0-6M2 21v-3a6 6 0 0 1 12 0v3m3-8a5 5 0 0 1 5 5v3',mail:'M3 5h18v14H3V5Zm0 1 9 7 9-7',tree:'M12 21V7m0 8C4 15 3 8 3 8s8-1 9 7Zm0-5c0-7 6-8 6-8s3 6-6 8Zm0 8c0-7 8-8 8-8s2 8-8 8Z'};
+export const icon=name=>`<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${paths[name]||paths.tree}"/></svg>`;
