@@ -14,7 +14,8 @@ def mat(name,hex,rough=.8,emit=0):
  if emit:p.inputs['Emission Color'].default_value=(*c,1);p.inputs['Emission Strength'].default_value=emit
  M[name]=m
 for n,c in [('wood','D7AF78'),('lightwood','EACDA2'),('beam','AF8156'),('cream','F3E4C9'),('roof','829475'),('terracotta','C78160'),('rooflight','A2B292'),('bark','9E7650'),('grass','88A668'),('moss','729357'),('leaf','57814C'),('leaflight','8CAB62'),('leafdark','416B45'),('stone','DCCCB0'),('earth','B19B70'),('water','6FAFA5'),('ink','355447'),('paper','F9EED7'),('gold','DDB565'),('flower','E8B06F'),('pink','DC9B99'),('linen','E5D8B7'),('archive','C59868')]:mat(n,c)
-mat('glow','FFE1A0',.4,1.2);mat('energy','BEE390',.4,.3)
+mat('glow','FFE1A0',.4,1.2);mat('energy','BEE390',.2,.65)
+mat('poplar','C5B85D');mat('blossom','DB94AB')
 def group(name,loc=(0,0,0),angle=0):
  global G
  G=name
@@ -120,8 +121,9 @@ for i in range(12):
  # Cabin front (-Y) faces the central commons.
  cabin(i,x,y,a-math.pi/2)
 group('Landscape')
-for i in range(30):
- a=i*2.399;r=random.uniform(16,20);tree(math.cos(a)*r,math.sin(a)*r*.83,random.uniform(4,6.7))
+for i in range(26):
+ a=i*2.399;r=random.uniform(17,20);x=math.cos(a)*r;y=math.sin(a)*r*.83
+ tree(x,y,random.uniform(3,4.1) if y < -9 else random.uniform(4,6))
 for k in range(450):
  x=random.uniform(-20,20);y=random.uniform(-17,17)
  if (x*x/400+y*y/289)>1 or math.hypot(x,y)<5:continue
@@ -135,8 +137,29 @@ for j in range(9):
  for k in [-.43,.43]:
   x=math.cos(a)*3.9-math.sin(a)*k;y=math.sin(a)*3.9+math.cos(a)*k;beam((x,y,.28),(x,y,.52),.065,'beam')
 group('TogetherTree');tree(0,0,8.0)
-for j in range(9):
- a=j*2.4;ball((math.cos(a)*1.9,math.sin(a)*1.9,2+j*.22),(.16,.16,.16),'energy')
+group('Seedling');beam((0,0,.5),(0,0,1.8),.085,'bark',.035)
+for z,a in [(1.2,.4),(1.6,3.1)]:leaf((math.cos(a)*.25,math.sin(a)*.25,z),.55,a,'leaflight')
+for j in range(3):
+ a=-1.2+j*1.8
+ group('EnergyOrb_'+str(j),(math.cos(a)*2.6,math.sin(a)*2.6,2.1+j*.55))
+ ball((0,0,0),(.52,.52,.52),'energy',24,12)
+ leaf((0,-.47,.1),.2,.7,'leaf');ball((-.16,-.4,.2),(.08,.05,.08),'cream',12,6)
+group('WateringCan',(-2.7,-2,.6))
+beam((0,0,0),(0,0,.65),.4,'roof',.33,32)
+beam((.25,0,.2),(.95,0,.85),.11,'roof',.09,16)
+ball((1,0,.89),(.18,.16,.07),'gold',16,6)
+for j in range(12):
+ a=j*math.pi/11; b=(j+1)*math.pi/11
+ beam((-.32-.35*math.sin(a),0,.32+.43*math.cos(a)),(-.32-.35*math.sin(b),0,.32+.43*math.cos(b)),.045,'lightwood')
+for j in range(8):
+ group('WaterDrop_'+str(j));ball((0,0,0),(.055,.055,.11),'energy',8,5)
+group('GroveSign',(2.7,-3.3,.1))
+for x in [-.85,.85]:beam((x,0,0),(x,0,1.9),.09,'wood')
+box((0,0,1.55),(2.3,.15,.8),'lightwood');box((0,-.085,1.55),(2.08,.03,.62),'paper')
+for j in range(3):
+ a=.25+j*2.1;x=math.cos(a)*3.3;y=math.sin(a)*3.3
+ group('GrovePlot_'+str(j),(x,y,.25));ball((0,0,0),(.95,.7,.1),'earth',24,6)
+ group('GrovePlant_'+str(j),(x,y,.3));tree(0,0,1.8+j*.25)
 group('WelcomeBoard',(-4,-4,0))
 for x in [-.75,.75]:beam((x,0,0),(x,0,2),.1)
 box((0,0,1.45),(1.95,.17,1.15),'wood');box((0,-.1,1.45),(1.75,.03,.95),'paper')
@@ -148,7 +171,21 @@ for x in [1.14,2.26]:
  for y in [-2,0,2]:beam((x,y,.4),(x,y,1.25),.05)
  beam((x,-2,1.25),(x,2,1.25),.04)
 for k in range(9):ball((random.uniform(-2,0),random.uniform(-1.5,1.5),.18),(.25,.2,.02),'leaf')
-group('SpeciesGarden',(8,-13,0));tree(-1,0,3,'saxaul');tree(1,1,3.8)
+group('SpeciesGarden',(8,-13,0));tree(-1,0,3,'saxaul')
+# Separate miniature botanical exhibits, not a claim these species share one habitat.
+group('PoplarExhibit',(10,-12,0));beam((0,0,0),(.2,0,3.8),.23,'bark',.07)
+for j in range(7):
+ a=j*2.399;z=1.7+j*.25;end=(math.cos(a)*.8,math.sin(a)*.8,z+.4)
+ beam((.1,0,z),end,.075,'bark',.02)
+ for k in range(45):
+  t=random.random()*math.tau;r=random.random()*.6
+  leaf((end[0]+math.cos(t)*r,end[1]+math.sin(t)*r,end[2]+random.uniform(-.3,.3)),.23,t,'poplar')
+group('FlowerExhibit',(6,-14,0))
+for j in range(14):
+ a=j*2.399;end=(math.cos(a)*.65,math.sin(a)*.65,random.uniform(.6,1.2))
+ beam((0,0,.1),end,.028,'bark',.008)
+ for k in range(4):ball((end[0],end[1],end[2]-k*.09),(.065,.065,.08),'blossom',8,4)
+group('SpeciesGarden')
 for k in range(6):box((-2+k*.7,-1,.15),(.57,.57,.25),'stone');plant(-2+k*.7,-1,.3,.16)
 
 # Shared choices become visible buildings after a co-signed delivery.
@@ -205,7 +242,7 @@ beam((-2.33,1.2,1.75),(-2.33,1.78,1.75),.013,'cream');ball((-2.33,1.46,1.77),(.0
 # gathering table with two chairs and tea
 beam((.65,.45,.25),(.65,.45,1.03),.2,'wood',.13);beam((.65,.45,1.03),(.65,.45,1.16),1.14,'lightwood',n=48)
 for x in [.1,1.2]:beam((x,.4,1.17),(x,.4,1.31),.1,'cream',.11,18);beam((x,.4,1.31),(x,.4,1.32),.08,'bark',n=18)
-box((.65,.9,1.18),(.62,.42,.025),'paper',.1)
+for j in range(3):box((-.02+j*.62,.83,1.18),(.49,.39,.025),'paper',(-.1+j*.1))
 chair(.65,1.8,.23);chair(.65,-1.0,.23)
 ball((.4,.1,.265),(1.75,2,.025),'linen',48,4)
 # sofa, books and plant niche

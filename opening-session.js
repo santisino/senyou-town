@@ -1,23 +1,29 @@
-import {PROJECTS,makeProfile,QUESTIONS} from './opening-content.js';
+import {PROJECTS,makeProfile,QUESTIONS} from './opening-content.js?v=grove3';
+import {cleanStory,buildStory} from './opening-story.js?v=grove3';
+import {prepareEnergy,awardAgreement,awardProject,wateredEnergy,energyAction} from './opening-energy.js?v=grove3';
 export const uid=()=>crypto.randomUUID();
 const clean=(x,n=1200)=>typeof x==='string'?x.trim().slice(0,n):'';
 const color=x=>/^#[0-9a-f]{6}$/i.test(x)?x:'#829475';
 export function sanitizeResident(r,id){
  const p=r.profile||{},profile={};for(const k of ['intro','habits','communication','support','experience','offer','growth'])profile[k]=clean(p[k],k==='intro'?100:1200);
+ profile.story=cleanStory(p.story,profile);
  const a=r.appearance||{};return {id,name:clean(r.name,20)||'新居民',profile,appearance:{body:['neutral','female','male'].includes(a.body)?a.body:'neutral',hairstyle:[0,1,2,3].includes(a.hairstyle)?a.hairstyle:1,skin:color(a.skin),hair:color(a.hair),outfit:color(a.outfit)},houseColor:color(r.houseColor),ready:!!r.ready,online:true,location:clean(r.location,50)||'小屋',joinedAt:r.joinedAt||Date.now()};
 }
-export const newRoom=()=>({version:2,phase:0,createdAt:Date.now(),residents:{},messages:[],agreements:[],projects:{},visits:[],revision:0,auth:{}});
-export function energy(room){return room.publicEnergy??(Object.values(room.residents).filter(r=>r.ready).length*5+room.visits.length*2+new Set(room.agreements.filter(a=>a.accepted).map(a=>[a.from,a.to].sort().join(':'))).size*8+Object.values(room.projects).filter(p=>p.submitted).length*20);}
+export const newRoom=()=>({version:3,townName:'我们的第一片合种林',ledger:[],phase:0,createdAt:Date.now(),residents:{},messages:[],agreements:[],projects:{},visits:[],revision:0,auth:{}});
+export const energy=wateredEnergy;
 export function standings(room){return PROJECTS.map(p=>({...p,...room.projects[p.id],points:(room.projects[p.id]?.members.length||0)*3+(room.projects[p.id]?.submitted?20:0)})).sort((a,b)=>b.points-a.points);}
 // All authority and validation live at the host, never in participant view controls.
 export function applyAction(room,actor,action,isHost=false){
+ prepareEnergy(room);
  const r=room.residents[actor];if(!r)throw Error('请先加入场次。');if(!action||typeof action.type!=='string')throw Error('操作格式不正确。');const t=action.type,p=action.payload||{};
  if(t==='profile'){room.residents[actor]={...sanitizeResident(p,actor),joinedAt:r.joinedAt};}
- else if(t==='phase'){if(!isHost)throw Error('只有主持人可以切换阶段。');if(![0,1,2,3].includes(p.phase))throw Error('无效阶段');if(p.phase===3&&!Object.values(room.projects).some(p=>p.submitted))throw Error('请先完成一个共建项目。');room.phase=p.phase;}
+ else if(t==='phase'){if(!isHost)throw Error('只有主持人可以切换阶段。');if(![0,1,2,3].includes(p.phase))throw Error('无效阶段');if(p.phase===3&&!Object.values(room.projects).some(p=>p.submitted))throw Error('请先完成一个共建项目。');if(p.phase===3&&energy(room)===0)throw Error('请先收取合作能量，为合种林浇一次水。');room.phase=p.phase;}
+ else if(t==='townName'){if(!isHost)throw Error('只有主持人可以修改本场名称。');room.townName=clean(p.name,30)||'我们的第一片合种林';}
  else if(t==='presence'){r.location=clean(p.location,50);r.online=true;}
  else {
   if(room.phase<1||!r.ready)throw Error('请完成入住，并等待主持人开放串门。');
-  if(t==='visit'){
+  if(t==='collect'||t==='water'){energyAction(room,actor,t,p);}
+  else if(t==='visit'){
    if(p.to===actor||!room.residents[p.to]?.ready)throw Error('这位居民还没准备好。');
    if(!room.visits.some(v=>v.from===actor&&v.to===p.to))room.visits.push({from:actor,to:p.to,at:Date.now()});
    r.location=p.to;
@@ -28,9 +34,9 @@ export function applyAction(room,actor,action,isHost=false){
   }else if(t==='agreement'){
    if(!room.residents[p.to]?.ready||p.to===actor)throw Error('请选择已入住的邻居。');const text=clean(p.text,400);if(!text)throw Error('先写一条具体约定。');
    if(room.agreements.some(a=>[a.from,a.to].includes(actor)&&[a.from,a.to].includes(p.to)&&!a.accepted))throw Error('已有待确认的约定，请先回复。');
-   room.agreements.push({id:uid(),from:actor,to:p.to,text,accepted:false,at:Date.now()});
+   room.agreements.push({id:uid(),from:actor,to:p.to,text,kind:p.kind==='support'?'support':'cooperation',accepted:false,at:Date.now()});
   }else if(t==='accept'){
-   const a=room.agreements.find(a=>a.id===p.id);if(!a||a.to!==actor)throw Error('只有收到约定的人可以确认。');a.accepted=true;
+   const a=room.agreements.find(a=>a.id===p.id);if(!a||a.to!==actor)throw Error('只有收到约定的人可以确认。');a.accepted=true;awardAgreement(room,a);
   }else if(t==='projectJoin'){
    if(room.phase!==2)throw Error('请等待共建阶段。');const def=PROJECTS.find(d=>d.id===p.id);if(!def)throw Error('项目不存在');
    if(room.projects[p.id]?.submitted)throw Error('这个项目已交付。');
@@ -46,21 +52,21 @@ export function applyAction(room,actor,action,isHost=false){
    const text=clean(p.text,1200);if(p.submit&&(choices.length<2||text.length<10||project.members.length<2))throw Error('至少两位居民、两项选择和十字以上的共同方案，才能提交。');
    if(project.submitted)throw Error('项目已提交，不能覆盖。');const changed=JSON.stringify(choices)!==JSON.stringify(project.choices)||text!==project.text;
    const approvals=changed?[actor]:[...new Set([...(project.approvals||[]),actor])].filter(id=>project.members.includes(id));
-   if(p.submit&&approvals.length<2)throw Error('先保存讨论稿，再请另一位成员确认这版方案。修改内容后需要重新确认。');Object.assign(project,{choices,text,approvals,draftRevision:(project.draftRevision||0)+(changed?1:0),submitted:!!p.submit,updatedBy:actor,updatedAt:Date.now()});
+   if(p.submit&&approvals.length<2)throw Error('先保存讨论稿，再请另一位成员确认这版方案。修改内容后需要重新确认。');Object.assign(project,{choices,text,approvals,draftRevision:(project.draftRevision||0)+(changed?1:0),submitted:!!p.submit,updatedBy:actor,updatedAt:Date.now()});if(p.submit)awardProject(room,project);
   }else throw Error('不支持的操作');
  }
  room.revision++;return room;
 }
-export function snapshot(room,id){const residents=Object.fromEntries(Object.entries(room.residents).map(([key,r])=>[key,room.phase===0&&key!==id?{id:r.id,name:r.name,ready:r.ready,online:r.online,profile:{}}:r]));return {...room,residents,publicEnergy:energy(room),auth:undefined,messages:room.messages.filter(m=>m.from===id||m.to===id),agreements:room.agreements.filter(a=>a.from===id||a.to===id)};}
+export function snapshot(room,id){const residents=Object.fromEntries(Object.entries(room.residents).map(([key,r])=>[key,room.phase===0&&key!==id?{id:r.id,name:r.name,ready:r.ready,online:r.online,profile:{}}:r]));return {...room,residents,publicEnergy:energy(room),ledger:(room.ledger||[]).filter(e=>e.owner===id),auth:undefined,messages:room.messages.filter(m=>m.from===id||m.to===id),agreements:room.agreements.filter(a=>a.from===id||a.to===id)};}
 export class TownSession{
  constructor(onChange,onStatus,onError){this.onChange=onChange;this.onStatus=onStatus;this.onError=onError;this.links=new Map();this.mode='none';this.id=localStorage.getItem('senyou-person-id')||uid();localStorage.setItem('senyou-person-id',this.id);this.secret=localStorage.getItem('senyou-person-secret')||uid();localStorage.setItem('senyou-person-secret',this.secret);}
  demo(profile){this.close();this.mode='demo';this.room=null;try{this.room=JSON.parse(localStorage.getItem('senyou-opening-demo'));}catch{}if(!this.room?.residents)this.room=newRoom();this.room.residents[this.id]=sanitizeResident(profile,this.id);
   ['阿禾','青岚','小满'].forEach((name,i)=>{const id='demo-'+i;if(this.room.residents[id])return;const answers=Object.fromEntries(QUESTIONS.map((q,j)=>[q.id,(i+j%2)%4]));this.room.residents[id]={...sanitizeResident({name,ready:true,appearance:{body:'neutral',hairstyle:i,skin:'#deb896',hair:'#594334',outfit:['#a0ad87','#c78160','#829bb2'][i]},profile:makeProfile(answers,{experience:'这是一位预设体验居民，展示协作资料的呈现方式。',offer:['一起整理欢迎地图','一起设计安静花园','一起观察森林物种'][i]})},id),demo:true,online:false};});
-  this.onStatus('独自体验 · 邻居为预设角色');this.publish();
+  for(const r of Object.values(this.room.residents))if(r.demo){r.profile.story=buildStory(r.profile);r.profile.support='';}prepareEnergy(this.room);this.onStatus('独自体验 · 邻居为预设角色');this.publish();
  }
  async host(profile,resume=false){this.close();this.mode='host';this.room=newRoom();let prior;try{prior=JSON.parse(localStorage.getItem('senyou-opening-host'));}catch{}
   if(resume&&prior?.room){this.room=prior.room;this.code=prior.code;Object.values(this.room.residents).forEach(r=>r.online=false);}else this.code=uid().replaceAll('-','').slice(0,16);
-  this.room.residents[this.id]=sanitizeResident(profile,this.id);this.room.auth[this.id]=this.secret;
+  prepareEnergy(this.room);this.room.residents[this.id]=sanitizeResident(profile,this.id);this.room.auth[this.id]=this.secret;
   await this.openPeer('senyou-v2-'+this.code);this.peer.on('connection',conn=>this.hostConnection(conn));this.healthTimer=setInterval(()=>{let changed=false;for(const [id,c] of this.links){if(Date.now()-(c.lastSeen||0)>65000){this.links.delete(id);if(this.room.residents[id])this.room.residents[id].online=false;c.close();changed=true;}}if(changed)this.publish();},10000);this.onStatus('主持人在线 · 场次 '+this.code);this.publish();return this.code;
  }
  async join(code,profile){this.close();this.mode='guest';this.code=clean(code,40).toLowerCase();if(!/^[a-f0-9]{16}$/.test(this.code))throw Error('请输入邀请中的 16 位场次码。');
