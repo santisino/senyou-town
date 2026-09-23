@@ -9,7 +9,7 @@ export function sanitizeResident(r,id){
  profile.story=cleanStory(p.story,profile);
  const a=r.appearance||{};return {id,name:clean(r.name,20)||'新居民',profile,appearance:{body:['neutral','female','male'].includes(a.body)?a.body:'neutral',hairstyle:[0,1,2,3].includes(a.hairstyle)?a.hairstyle:1,skin:color(a.skin),hair:color(a.hair),outfit:color(a.outfit)},houseColor:color(r.houseColor),ready:!!r.ready,online:true,location:clean(r.location,50)||'小屋',joinedAt:r.joinedAt||Date.now()};
 }
-export const newRoom=()=>({version:3,townName:'我们的第一片合种林',ledger:[],phase:0,createdAt:Date.now(),residents:{},messages:[],agreements:[],projects:{},visits:[],revision:0,auth:{}});
+export const newRoom=()=>({version:3,activityName:'森友小镇开张日',townName:'我们的第一片合种林',ledger:[],phase:0,createdAt:Date.now(),residents:{},messages:[],agreements:[],projects:{},visits:[],revision:0,auth:{}});
 export const energy=wateredEnergy;
 export function standings(room){return PROJECTS.map(p=>({...p,...room.projects[p.id],points:(room.projects[p.id]?.members.length||0)*3+(room.projects[p.id]?.submitted?20:0)})).sort((a,b)=>b.points-a.points);}
 // All authority and validation live at the host, never in participant view controls.
@@ -64,9 +64,9 @@ export class TownSession{
   ['阿禾','青岚','小满'].forEach((name,i)=>{const id='demo-'+i;if(this.room.residents[id])return;const answers=Object.fromEntries(QUESTIONS.map((q,j)=>[q.id,(i+j%2)%4]));this.room.residents[id]={...sanitizeResident({name,ready:true,appearance:{body:'neutral',hairstyle:i,skin:'#deb896',hair:'#594334',outfit:['#a0ad87','#c78160','#829bb2'][i]},profile:makeProfile(answers,{experience:'这是一位预设体验居民，展示协作资料的呈现方式。',offer:['一起整理欢迎地图','一起设计安静花园','一起观察森林物种'][i]})},id),demo:true,online:false};});
   for(const r of Object.values(this.room.residents))if(r.demo){r.profile.story=buildStory(r.profile);r.profile.support='';}prepareEnergy(this.room);this.onStatus('独自体验 · 邻居为预设角色');this.publish();
  }
- async host(profile,resume=false){this.close();this.mode='host';this.room=newRoom();let prior;try{prior=JSON.parse(localStorage.getItem('senyou-opening-host'));}catch{}
+ async host(profile,resume=false,activityName='森友小镇开张日'){this.close();this.mode='host';this.room=newRoom();this.room.activityName=clean(activityName,40)||'森友小镇开张日';let prior;try{prior=JSON.parse(localStorage.getItem('senyou-opening-host'));}catch{}
   if(resume&&prior?.room){this.room=prior.room;this.code=prior.code;Object.values(this.room.residents).forEach(r=>r.online=false);}else this.code=uid().replaceAll('-','').slice(0,16);
-  prepareEnergy(this.room);this.room.residents[this.id]=sanitizeResident(profile,this.id);this.room.auth[this.id]=this.secret;
+  prepareEnergy(this.room);this.room.organizerId=this.id;this.room.residents[this.id]=sanitizeResident(profile,this.id);this.room.auth[this.id]=this.secret;
   await this.openPeer('senyou-v2-'+this.code);this.peer.on('connection',conn=>this.hostConnection(conn));this.healthTimer=setInterval(()=>{let changed=false;for(const [id,c] of this.links){if(Date.now()-(c.lastSeen||0)>65000){this.links.delete(id);if(this.room.residents[id])this.room.residents[id].online=false;c.close();changed=true;}}if(changed)this.publish();},10000);this.onStatus('主持人在线 · 场次 '+this.code);this.publish();return this.code;
  }
  async join(code,profile){this.close();this.mode='guest';this.code=clean(code,40).toLowerCase();if(!/^[a-f0-9]{16}$/.test(this.code))throw Error('请输入邀请中的 16 位场次码。');
