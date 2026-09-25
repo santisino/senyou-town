@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#faf7f0"><meta name="description" content="在温暖的森林小屋中认识自己，认识一起做事的彼此。森友小镇交互演示，全部为虚构人物。">
+  <title>蚂上懂我 · 森友小镇</title>
+  <link rel="stylesheet" href="./meet.css?v=meet1">
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
+</head>
+<body>
+  <a class="skip" href="#content">跳到个人内容</a>
+  <header class="site-header"><a class="brand" href="./meet.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 22V9m0 7C2 16 2 5 2 5s10 0 10 11Zm0-5C12 2 21 2 21 2s1 9-9 9Z"/></svg><span>森友小镇<small>蚂上懂我</small></span></a><nav aria-label="主导航"><button data-act="mine">我的小屋</button><button data-act="discover">认识森友</button><button data-act="about">演示说明</button></nav></header>
+  <main class="shell">
+    <div id="context-bar" class="context-bar"></div>
+    <div class="layout">
+      <aside class="scene-column" aria-label="小屋场景">
+        <div id="scene" class="scene"><p id="scene-status" role="status">正在打开森林里的小屋…</p></div>
+        <div class="scene-caption"><span id="scene-caption">一间小屋，慢慢认识一个人</span><small>拖动旋转 · 双指缩放</small></div>
+        <nav id="places" class="places" aria-label="认识的三个层次"></nav>
+      </aside>
+      <section id="content" tabindex="-1" aria-label="个人呈现与认识过程"></section>
+    </div>
+    <footer>虚构人物与模拟报告，仅用于讨论体验。编辑仅保存在本机，不会发送给他人。<a href="./">查看旧版活动演示</a></footer>
+  </main>
+  <dialog id="modal" aria-labelledby="modal-title"><button class="close" data-act="close" aria-label="关闭对话框">×</button><div id="modal-content"></div></dialog>
+  <div id="notice" role="status" aria-live="polite"></div>
+  <script type="module" src="./meet-app.js?v=meet1"></script>
+</body></html>

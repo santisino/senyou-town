@@ -1,0 +1,27 @@
+// Fictional authored content, not a vendor assessment or real employee data.
+export const STORE_KEY='senyou-meet-demo-v1';
+export const sourceNote='虚构报告转译样例，未经专业测评验证';
+const person=(p)=>({ready:true,houseColor:'#94a884',appearance:{body:'neutral',hairstyle:1,outfit:'#a0ad87'},tags:[],interests:[],notes:'',experience:'',wish:'',wishDetail:'',category:'社交',needed:3,status:'找人中',shareLife:true,shareWork:true,deepMode:'request',...p});
+export const SELF=person({id:'me',name:'小禾',group:'第1组',headline:'喜欢把一个“要不试试”，变成真的。',tags:['好奇心拉满','乐于搭手','先做个小样'],interests:['AI探索','桌游','骑行'],work:'给我一个清楚的目标，再留一点试验空间；有变化时，及时和我对齐就好。',notes:'最近在试着用 AI 把脑中的想法做成小工具。比起看教程，我更想找个人一起做一个能用的小东西。',experience:'做过一次跨团队的小项目。最享受的时刻，是大家把各自擅长的一小块拼在一起。',wish:'找个搭子，把一个小想法做出来。',wishDetail:'不求做大，先一起做一个班级里用得上的小工具。',category:'创造',needed:2,deep:{rhythm:'先有一个可以试的小样，再边做边收集反馈。',help:'当想法太多时，请和我一起选出这一轮最重要的一件事。',misread:'我追问“还有别的办法吗”，通常是想一起探索，不是在否定已有方案。',growth:'正在练习：把探索后的结论说得更简洁。',evidence:'这周给自己留一个练习：每次讨论后，用三句话写下结论、下一步和负责人。'}});
+export const NEIGHBORS=[
+ person({id:'lin',name:'小林',group:'第2组',headline:'先冒出点子，再一起把它做好。',tags:['好奇心拉满','边聊边想','乐于搭手'],interests:['桌游','手冲咖啡','AI探索'],work:'先说目标，再一起碰想法；重要结论请帮我落成文字。',notes:'最近在摸索怎么让桌游新手也能轻松加入。我在试着把规则讲成一个小故事。',experience:'以前给朋友组织过桌游夜。有人不爱发言，我会先留一个轻松的小问题，让大家慢慢进入状态。',wish:'今晚来一局桌游？新手也欢迎。',wishDetail:'想找3位伙伴，饭后一起玩阿瓦隆。',houseColor:'#829475',appearance:{body:'neutral',hairstyle:1,outfit:'#c79167'},deep:{rhythm:'讨论时容易想到多种可能，边表达边把思路理顺。',help:'如果讨论发散，请先帮我收拢成两个选项，再约定下一步。',misread:'我一口气提出几个新点子，不代表要推翻已经确定的事。',growth:'正在练习：让每次热烈讨论都有一个清楚的收尾。',evidence:'上次组织桌游后，我记下了大家最容易卡住的三条规则，准备下次先讲。'}}),
+ person({id:'yue',name:'晓月',group:'第3组',headline:'把零散的线索，整理成安心的下一步。',tags:['细节收纳师','慢热但认真'],interests:['非虚构阅读','摄影','手冲咖啡'],work:'提前给我一点背景和材料，我会带着想清楚的问题来。',notes:'最近在读关于城市生活的非虚构作品，想交换一本让你有新发现的书。',experience:'习惯把复杂安排整理成一张清单，也在练习不等一切完美再开始。',wish:'周末一起读一本非虚构。',wishDetail:'不用提前读完，带一个想讨论的片段就好。',category:'学习',needed:3,houseColor:'#bc8d78',appearance:{body:'neutral',hairstyle:3,outfit:'#c4a29c'},deep:{rhythm:'先核对信息，再把任务拆成可以推进的小步。',help:'请说明优先级和交付标准；临时调整时，也告诉我为什么。',misread:'我问细节，是想降低遗漏，不是对你不放心。',growth:'正在练习：在信息不完整时，也先迈出一小步。',evidence:'给自己的实践记录：先提交草稿，再根据反馈修订。'}}),
+ person({id:'ming',name:'一鸣',group:'第2组',headline:'定好方向，就一起往前走。',tags:['行动派','里程碑爱好者'],interests:['夜跑','篮球','智能硬件'],work:'先告诉我目标、期限和卡点；需要我拍板的地方，请直接说。',notes:'最近在练习把“我来推进”，变成“大家都知道怎么推进”。',experience:'喜欢组织夜跑，也愿意给第一次参加的同学做领跑。',wish:'每周三，滨江一起跑5公里。',wishDetail:'这一轮伙伴已找齐，欢迎先聊聊下次的路线。',category:'运动',needed:4,status:'已成局',houseColor:'#9bb3ad',appearance:{body:'neutral',hairstyle:0,outfit:'#6f8f8a'},deep:{rhythm:'愿意推动决策，让行动尽快发生。',help:'如果有风险，请一起提出可选方案，我会更容易调整节奏。',misread:'我说话简短时，常常是急着推进，不代表不在意你的感受。',growth:'正在练习：推进之前，多问一次大家的顾虑。',evidence:'每次小组讨论先留两分钟，让还没发言的人补充。'}}),
+ person({id:'zhe',name:'阿哲',group:'第1组',headline:'先听懂你，再慢慢把问题聊透。',tags:['咖啡慢聊派','安静的倾听者'],interests:['手冲咖啡','播客','徒步'],work:'可以先发文字给我；稍复杂的问题，约一段完整的时间聊会更好。',notes:'最近在听关于沟通的播客，开始刻意练习不急着给建议。',experience:'我比较慢热，但认定一个问题之后，愿意花时间一起把它想清楚。',deepMode:'closed',houseColor:'#c5ac83',appearance:{body:'neutral',hairstyle:2,outfit:'#a38d75'},deep:{rhythm:'愿意耐心听取不同意见，逐步形成判断。',help:'留一点思考时间，不必要求我马上回应。',misread:'我安静时也在参与，不一定是没有想法。',growth:'正在练习：在讨论中更早分享未完成的想法。',evidence:'暂无公开记录。'}}),
+ person({id:'yu',name:'小雨',group:'第3组',headline:'刚搬进森林，先和大家打个照面。',tags:[],interests:[],work:'',shareLife:false,deepMode:'closed',houseColor:'#a9b898',appearance:{body:'neutral',hairstyle:3,outfit:'#90a7b1'},deep:null})
+];
+export const emptySelf=()=>({...structuredClone(SELF),headline:'',tags:[],interests:[],work:'',notes:'',experience:'',wish:'',wishDetail:'',deep:null});
+export const initialState=()=>({version:1,activated:false,confirmed:false,reportConsent:false,me:emptySelf(),grants:{},pairGrants:{},bookmarks:[],drafts:{}});
+export const escapeHTML=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export function canReadDeep(p,state,{owner=false,preview=false}={}){return Boolean(p.deep&&(owner&&!preview||p.id!=='me'&&p.deepMode!=='closed'&&state.grants[p.id]==='approved'));}
+export function publicPerson(p){return {...p,work:p.shareWork?p.work:'',interests:p.shareLife?p.interests:[],notes:p.shareLife?p.notes:'',experience:p.shareLife?p.experience:'',deep:null};}
+export function filterPeople(list,query='',filter='all',group='第1组'){
+ const q=query.trim().toLocaleLowerCase();
+ return list.filter(raw=>{const p=publicPerson(raw);const text=[p.name,p.group,p.headline,...p.tags,...p.interests,p.wish,p.wishDetail,p.work].join(' ').toLocaleLowerCase();return (!q||text.includes(q))&&(filter!=='open'||Boolean(p.wish)&&p.status==='找人中')&&(filter!=='cross'||p.group!==group)&&(filter!=='learn'||p.category==='学习'&&p.wish)&&(filter!=='social'||p.category==='社交'&&p.wish);});
+}
+export function connection(p,me){const common=publicPerson(p).interests.filter(i=>me.interests.includes(i));return common.length?`你们都喜欢${common.slice(0,2).join('、')}。可以从这里聊起。`:p.wish?`TA最近想做的事，就是一个自然的开场。`:'不一定要有相同爱好，也可以从一次自我介绍开始。';}
+export function greeting(p,me,kind='wish'){
+ if(kind==='wish'&&p.wish&&p.status==='找人中')return `${p.name}你好，我是${me.name}，在${me.group}。看到你想“${p.wish}”，我也有兴趣！方便聊聊怎么参加吗？`;
+ if(kind==='work'&&p.shareWork&&p.work)return `${p.name}你好，我是${me.name}。看了你写的协作偏好：“${p.work}” 如果之后一起做事，我会记得先和你对齐。也想听听你最近在关注什么。`;
+ const common=publicPerson(p).interests.filter(i=>me.interests.includes(i));return `${p.name}你好，我是${me.name}，在${me.group}。${common.length?`发现我们都喜欢${common[0]}，想和你交换一点最近的发现。`:'我们还没好好聊过，想找个方便的时候认识一下。'}`;
+}
