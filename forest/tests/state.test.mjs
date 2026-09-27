@@ -13,6 +13,22 @@ import {
   STORAGE,
 } from "../state.js";
 import { FIELDS } from "../data.js";
+import { encodeVillage, decodeVillage } from "../config.js";
+test("village invitation roundtrips Chinese and special characters", async () => {
+  const v={...fresh().village,name:"百蚂 & <摄影村> 🌿",welcome:"你好，森林！"};
+  assert.deepEqual(await decodeVillage(await encodeVillage(v)),v);
+});
+test("maximum village prose fits an invitation without employee data", async () => {
+  const text=Array.from({length:300},(_,i)=>String.fromCharCode(0x4e00+i)).join("");
+  const v={...fresh().village,welcome:text,goal:text.split("").reverse().join("")};
+  const packed=await encodeVillage(v);
+  assert.ok(packed.length<2200);assert.deepEqual(await decodeVillage(packed),v);
+});
+test("village invitation rejects invalid encoding and strips unrelated keys",async()=>{
+  await assert.rejects(()=>decodeVillage("<script>"));
+  const decoded=await decodeVillage(await encodeVillage({name:"测试",residents:["private"]}));
+  assert.deepEqual(decoded,{name:"测试"});
+});
 const act = (s, a) => transact(s, a),
   open = () =>
     act(act(fresh(), { type: "switch", id: "he" }), {

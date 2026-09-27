@@ -128,3 +128,5 @@ body:has(.welcome-panel) #navigation {
     opacity: 0.7;
   }
 }
+.panel p, .panel h3, .panel .tag { overflow-wrap: anywhere; min-width: 0; }
+.panel .tag { max-width: 100%; }

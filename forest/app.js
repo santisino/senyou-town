@@ -12,6 +12,7 @@ import {
   ready,
 } from "./state.js";
 import qrcode from "../vendor/qrcode.mjs";
+import { encodeVillage, decodeVillage } from "./config.js";
 const $ = (s) => document.querySelector(s),
   esc = (s) =>
     String(s ?? "").replace(
@@ -51,7 +52,7 @@ const tags = (text) =>
     .split(/[、，,]/)
     .filter(Boolean)
     .slice(0, 4)
-    .map((t) => `<span class="tag">${esc(t)}</span>`)
+    .map((t) => `<span class="tag" title="${esc(t)}">${esc(t.length>18?t.slice(0,18)+"…":t)}</span>`)
     .join("")}</div>`;
 const section = (title, text) =>
   text
@@ -333,7 +334,7 @@ function drawResidents() {
     `<small>${rows.length} 位森友 · 虚构示例资料</small><div class="resident-grid">${rows
       .map((r) => {
         const p = profile(r.id).profile;
-        return `<article class="resident-card">${person(r)}${tags(p.traits)}<p>${esc(p.interests)}</p><div class="wish-line">${esc(p.wish.slice(0, 90) || "暂时没有公开心愿，先聊聊也很好。")}</div><p style="margin-top:12px">${esc(p.collaboration.slice(0, 55))}</p><div class="actions">${button("去他家坐坐", "visit", `data-id="${r.id}"`, "primary")}</div></article>`;
+        return `<article class="resident-card">${person(r)}${tags(p.traits)}<p>${esc(p.interests.slice(0,90))}${p.interests.length>90?"…":""}</p><div class="wish-line">${esc(p.wish.slice(0, 90) || "暂时没有公开心愿，先聊聊也很好。")}${p.wish.length>90?"…":""}</div><p style="margin-top:12px">${esc(p.collaboration.slice(0, 55))}${p.collaboration.length>55?"…":""}</p><div class="actions">${button("去他家坐坐", "visit", `data-id="${r.id}"`, "primary")}</div></article>`;
       })
       .join(
         "",
@@ -531,15 +532,20 @@ function spaces() {
   );
 }
 function space(key) {
-  if (!me().confirmed || state.stage !== "open") {
+  if (key !== "shop" && (!me().confirmed || state.stage !== "open")) {
     toast("请先入驻，并等待村庄开放。");
     return;
   }
   const spec = SPACES.find((p) => p[0] === key);
   if (!spec) return;
-  homeId = null;
-  world.town();
-  world.pos.set(spec[3][0], 0.33, spec[3][2] + 3);
+  if(key === "shop" && state.stage !== "open") {
+    homeId=state.actor;
+    world.showHome(me());
+  } else {
+    homeId = null;
+    world.town();
+    world.pos.set(spec[3][0], 0.33, spec[3][2] + 3);
+  }
   hud();
   const [_, title, sub] = spec;
   if (key === "park") {
@@ -661,14 +667,17 @@ function village() {
   $("#v-tone").value = state.village.tone;
   $("#v-appearance").value = state.village.appearance;
 }
-function qr() {
+async function qr() {
   const url = new URL("./", location.href);
   url.searchParams.set("village", state.village.name);
   const defaults=fresh().village;
-  for(const k of ['welcome','mayor','goal','tone','appearance'])if(state.village[k]!==defaults[k])url.searchParams.set(k,state.village[k]);
-  const qr = qrcode(0, "M");
+  if(['welcome','mayor','goal','tone','appearance'].some(k=>state.village[k]!==defaults[k]))
+    url.searchParams.set("config", await encodeVillage(state.village));
+  let qr = qrcode(0, "M");
   qr.addData(url.href);
-  qr.make();
+  try { qr.make(); } catch {
+    qr=qrcode(0,"L"); qr.addData(url.href); qr.make();
+  }
   panel(
     "扫码，来到我们的村庄",
     "手机打开即进入自己的入驻体验。",
@@ -1107,7 +1116,7 @@ document.addEventListener("click", async (e) => {
         }
         break;
       case "qr":
-        qr();
+        await qr();
         break;
       case "copy-link":
         try {
@@ -1239,6 +1248,10 @@ stick.onpointerup = release;
 stick.onpointercancel = release;
 async function init() {
   try {
+    if (params.get("config") && !state.welcomeSeen) {
+      try { Object.assign(state.village, await decodeVillage(params.get("config"))); }
+      catch { toast("邀请里的村庄配置无法读取，已使用默认村庄。你仍可正常体验。"); }
+    }
     for (const k of ["welcome", "mayor", "goal", "tone", "appearance"])
       if (params.get(k) && !state.welcomeSeen)
         state.village[k] = params
