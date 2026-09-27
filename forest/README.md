@@ -21,11 +21,19 @@ python3 -m http.server 8777
 node --test forest/tests/state.test.mjs
 ```
 
-Blender 工程保存于工作区 `ant-town-visuals/forest/forest.blend`，网页模型 `forest/assets/forest.glb`。
+交付的 Blender 工程在 `forest/source/forest.blend`，网页模型在 `forest/assets/forest.glb`。构建脚本复用 `source/build_opening_day.py` 的几何函数，因此请保留目录层级，不要只复制单个 Python 文件。重新构建时，工程写入仓库同级 `ant-town-visuals/forest/forest.blend`，模型写入 `forest/assets/`；不会改写旧版模型。
+
+打开本地服务后访问 `http://127.0.0.1:8777/forest/`，不要直接双击 HTML 文件。需要现代浏览器的 WebGL、ES Modules、CompressionStream 支持。Blender 仅在重新制作模型时需要，普通网站体验不依赖 Blender 安装。
+
+上线地址：https://santisino.github.io/senyou-town/forest/
+
+使用说明：https://ezvy2mkvjo.feishu.cn/docx/D8p2dfpwYoanDrxiDIOcuGNPngf
 
 ## 本地数据接口
 
 `data.js`：示例居民及公共空间；`state.js`：统一资料/展示投影、经济及社交事务；`world.js`：Blender GLB 加载、场景、移动和语义物件；`app.js`：界面与演示编排。
+
+`config.js` 只压缩公开村庄设置以生成扫码链接，不包含任何居民资料、礼物、申请或本地状态。不同设备各自体验，不互相同步。
 
 唯一存储键 `senyou-forest-demo-v1`。身份切换只用于本地模拟，不能作为生产权限实现。隐私选项只控制演示展示，不构成浏览器本地数据安全隔离。
 
@@ -33,4 +41,24 @@ Blender 工程保存于工作区 `ant-town-visuals/forest/forest.blend`，网页
 
 无报告入驻 → 确认册子 → 开放村庄 → 小禾拜访小林 → 阅读兴趣/桌子/册子 → 申请摄影 → 小林接受 → 送礼/收礼 → 公共空间回顾 → 修改介绍 → 多处同步 → 刷新恢复。
 
-阶段记录与真实截图保存在工作区 `output/森友会-新版交付/`，验收未完成前不得标注全部通过。
+阶段记录、实际截图、独立 Chrome 自动操作脚本、PDF 与验收结果保存在工作区 `output/森友会-新版交付/`。代码规则测试使用 Node.js，无额外 npm 安装步骤。浏览器验收脚本是交付证据而非生产依赖；其中的 Playwright 绝对路径需按执行机器调整。
+
+## 模型语义接口
+
+GLB 根节点为 `Village`、`Home`、`Avatar`。小屋内容节点：`Doorplate`、`Camera`、`Table`、`Book`、`Wish`、`Mailbox`。装饰节点：`PlantDecor`、`FlowerDecor`、`GiftDecor`、`Rug`。人物节点使用 `Avatar_Head/Torso/ArmL/ArmR/LegL/LegR`，网页驱动肢体行走，不把文字烘焙进模型。
+
+替换美术时保留这些稳定名称与局部坐标；需要修改场景尺寸时，同时核对 `world.js` 的物件交互位置与碰撞边界。`forest/assets/manifest.json` 列出当前分组。
+
+## 演示数据与安全边界
+
+- `me` 是当前浏览器自己的填写；小林、小禾、阿泽等为虚构数据。
+- 普通体验只能在本人确认且村庄开放后拜访其他居民。演示者入口能切换虚构角色，这不是服务器权限。
+- 每人 100 森友币、5 件招牌礼物；每场最多送 5 次；装饰 10/20/30 币，商店礼物 20 币，收到并接受后可回收 8 币。
+- 只改装饰不影响完成状态；报告示例须授权，且不覆盖本人已经填写的文字。
+- 重置前会二次确认，仅替换新版独立存储键。清除浏览器网站数据也会丢失本地记录。
+- 100 位居民是列表压力样本，不是 100 个在线用户。演示者仍只切换六个基础角色。
+- QR、分享文案和运行画面不应使用真实员工敏感资料；专业测评不在本地 Demo 中解析。
+
+## 后续技术接入
+
+需要正式团队实现：用户与活动身份、服务器授权、跨设备同步、消息通知、真实报告及同意流程、正式双人分析、联系人交换、运营风控和并发容量。当前本地事务可以作为交互协议参考，但不能直接当作生产后端或测评引擎。
