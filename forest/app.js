@@ -131,11 +131,22 @@ document.addEventListener("keydown", (e) => {
   }
 });
 function hud() {
-  document.body.dataset.scene = world?.mode || 'overview';
+  document.body.dataset.scene = world?.mode || "overview";
   $("#village-name").textContent = state.village.name;
   document.title = `蚂蚁森友会 · ${state.village.name}`;
   const r = me(),
     isHome = world?.mode === "home";
+  $("#house-tools").innerHTML = isHome
+    ? [
+        ["door", "门牌"],
+        ["interest", "兴趣角"],
+        ["table", "会客桌"],
+        ["wish", "心愿瓶"],
+        ["mail", "礼物"],
+      ]
+        .map(([key, label]) => button(label, "object", `data-key="${key}"`))
+        .join("") + button("出门", "exit-home")
+    : "";
   let title, copy, cta, action;
   if (!r.confirmed) {
     title = "让小屋，长出你的样子";
@@ -577,6 +588,15 @@ function space(key) {
       sub,
       `<p>你和小禾（模拟搭档）要一起摆一座小花园。先选你的做法：</p><div class="actions">${button("先商量布局，再一起摆", "garden", 'data-choice="先商量"')}${button("先摆一小块，边做边改", "garden", 'data-choice="先试做"')}</div>${result ? `<div class="notice">你选择：${esc(result.choice)}。<br>小禾的模拟回应：${esc(result.reply)}</div><label class="field">这让我发现<textarea id="garden-note" maxlength="600">${esc(me().notes.garden || "")}</textarea></label>${button("保存协作小发现", "save-garden", "", "primary")}` : ""}<p class="muted" style="margin-top:20px">没有优劣与人格评分。这是一次本地回合式协作示例，不是实时多人游戏。</p>`,
     );
+    if (result) {
+      const layout = state.publicResults[`${state.actor}:garden-layout`] || [
+        1, 0, 2, 1, 0, 2, 0, 0, 1,
+      ];
+      $(".panel-body").insertAdjacentHTML(
+        "afterbegin",
+        `<p class="muted">点格子切换「留白／小花／绿植」。留一条路，让搭档也能走进来。布局会同步摆到场景里。</p><div class="garden-grid">${layout.map((value, i) => button(["留白", "小花", "绿植"][value], "garden-cell", `data-index="${i}"`, value ? "planted" : "")).join("")}</div>`,
+      );
+    }
     return;
   }
   if (key === "class") {
@@ -754,11 +774,30 @@ document.addEventListener("change", (e) => {
     }[el.value];
   }
 });
+let recentTransaction = { key: "", at: 0 };
 document.addEventListener("click", async (e) => {
   const b = e.target.closest("[data-action]");
   if (!b) return;
   const a = b.dataset.action,
     d = b.dataset;
+  if (
+    [
+      "buy",
+      "send-gift",
+      "request",
+      "gift-reply",
+      "recycle",
+      "request-reply",
+    ].includes(a)
+  ) {
+    const key = [a, d.id, d.product, homeId].join(":");
+    if (
+      recentTransaction.key === key &&
+      performance.now() - recentTransaction.at < 650
+    )
+      return;
+    recentTransaction = { key, at: performance.now() };
+  }
   try {
     switch (a) {
       case "close":
@@ -816,6 +855,12 @@ document.addEventListener("click", async (e) => {
         break;
       case "own":
         visit(state.actor);
+        break;
+      case "exit-home":
+        homeId = null;
+        world.town();
+        close();
+        hud();
         break;
       case "map":
         homeId = null;
@@ -984,6 +1029,19 @@ document.addEventListener("click", async (e) => {
         });
         space("play");
         break;
+      case "garden-cell": {
+        const layout = [
+          ...(state.publicResults[`${state.actor}:garden-layout`] || [
+            1, 0, 2, 1, 0, 2, 0, 0, 1,
+          ]),
+        ];
+        layout[Number(d.index)] = (layout[Number(d.index)] + 1) % 3;
+        if (
+          commit({ type: "publicResult", key: "garden-layout", value: layout })
+        )
+          space("play");
+        break;
+      }
       case "save-garden":
         commit({ type: "note", key: "garden", value: $("#garden-note").value });
         toast("协作小发现已私密保存。");

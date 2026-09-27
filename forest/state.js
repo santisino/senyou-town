@@ -32,6 +32,8 @@ export function fresh() {
         owner: r.id,
         creator: r.id,
         name: r.signature.name,
+        color: r.signature.color,
+        template: r.signature.template,
         status: "available",
         kind: "signature",
       })),
@@ -147,8 +149,10 @@ export function transact(original, action) {
     case "signature":
       me.signature = {
         name: String(a.name || "森林问候").slice(0, 24),
-        color: a.color,
-        template: a.template,
+        color: /^#[0-9a-f]{6}$/i.test(a.color) ? a.color : "#829475",
+        template: ["leaf", "tea", "photo"].includes(a.template)
+          ? a.template
+          : "leaf",
         message: String(a.message || "").slice(0, 120),
       };
       s.items
@@ -159,7 +163,13 @@ export function transact(original, action) {
             i.kind === "signature" &&
             i.status === "available",
         )
-        .forEach((i) => (i.name = me.signature.name));
+        .forEach((i) =>
+          Object.assign(i, {
+            name: me.signature.name,
+            color: me.signature.color,
+            template: me.signature.template,
+          }),
+        );
       break;
     case "buy": {
       const product = SHOP.find((p) => p[0] === a.product);
@@ -245,6 +255,14 @@ export function transact(original, action) {
     }
     case "request": {
       other(a.to);
+      if (
+        s.requests.filter(
+          (r) =>
+            r.from === s.actor &&
+            ["pending", "accepted", "interested"].includes(r.status),
+        ).length >= 3
+      )
+        fail("最多同时参与 3 条心愿，先处理已有意向吧");
       const host = resident(s, a.to);
       if (
         !host.public.wish ||
@@ -338,10 +356,24 @@ export function load(storage = globalThis.localStorage) {
     const s = JSON.parse(storage.getItem(STORAGE));
     if (
       s?.version === 1 &&
-      s.residents?.length &&
-      s.wallets &&
-      s.items &&
-      s.village
+      Array.isArray(s.residents) &&
+      s.residents.some((r) => r.id === s.actor) &&
+      s.wallets?.[s.actor] &&
+      ["items", "gifts", "requests", "friends", "connections", "ledger"].every(
+        (k) => Array.isArray(s[k]),
+      ) &&
+      s.village &&
+      s.publicResults &&
+      s.residents.every(
+        (r) =>
+          r.profile &&
+          r.public &&
+          r.appearance &&
+          r.notes &&
+          Array.isArray(r.decor) &&
+          Array.isArray(r.bookmarked) &&
+          r.signature,
+      )
     )
       return s;
   } catch {}

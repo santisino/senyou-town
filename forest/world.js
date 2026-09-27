@@ -146,6 +146,37 @@ export class ForestWorld {
         );
     });
     if (this.village) this.refreshPins();
+    this.updateGarden();
+  }
+  updateGarden() {
+    if (!this.home || !this.state) return;
+    const layout =
+      this.state.publicResults[`${this.state.actor}:garden-layout`];
+    const key = JSON.stringify(layout);
+    if (this.gardenKey === key) return;
+    this.gardenKey = key;
+    this.garden?.removeFromParent();
+    this.garden = new T.Group();
+    this.village.add(this.garden);
+    if (!layout) return;
+    layout.forEach((v, i) => {
+      if (!v) return;
+      const source = this.home.getObjectByName("FlowerDecor");
+      const item = source.clone(true);
+      item.visible = true;
+      const box = new T.Box3().setFromObject(item),
+        c = box.getCenter(new T.Vector3());
+      item.position.sub(new T.Vector3(c.x, box.min.y, c.z));
+      const wrap = new T.Group();
+      wrap.add(item);
+      wrap.scale.setScalar(v === 1 ? 0.65 : 0.95);
+      wrap.position.set(
+        7.1 + (i % 3) * 0.8,
+        0.42,
+        14 + Math.floor(i / 3) * 0.65,
+      );
+      this.garden.add(wrap);
+    });
   }
   overview() {
     this.mode = "overview";
@@ -180,6 +211,19 @@ export class ForestWorld {
     this.home.getObjectByName("GiftDecor").visible = this.state.gifts.some(
       (g) => g.to === r.id && g.status === "pending",
     );
+    const pendingGift = this.state.gifts.find(
+      (g) => g.to === r.id && g.status === "pending",
+    );
+    const giftItem = this.state.items.find((i) => i.id === pendingGift?.item);
+    this.home.getObjectByName("GiftDecor").traverse((o) => {
+      if (o.isMesh && o.material.name === "terracotta") {
+        if (!o.userData.cloned) {
+          o.material = o.material.clone();
+          o.userData.cloned = true;
+        }
+        o.material.color.set(giftItem?.color || "#c78160");
+      }
+    });
     this.home.getObjectByName("Rug").traverse((o) => {
       if (o.isMesh) {
         if (!o.userData.cloned) {
