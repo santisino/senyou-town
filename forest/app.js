@@ -664,11 +664,8 @@ function village() {
 function qr() {
   const url = new URL("./", location.href);
   url.searchParams.set("village", state.village.name);
-  url.searchParams.set("welcome", state.village.welcome);
-  url.searchParams.set("mayor", state.village.mayor);
-  url.searchParams.set("goal", state.village.goal);
-  url.searchParams.set("tone", state.village.tone);
-  url.searchParams.set("appearance", state.village.appearance);
+  const defaults=fresh().village;
+  for(const k of ['welcome','mayor','goal','tone','appearance'])if(state.village[k]!==defaults[k])url.searchParams.set(k,state.village[k]);
   const qr = qrcode(0, "M");
   qr.addData(url.href);
   qr.make();
