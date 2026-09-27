@@ -1,0 +1,108 @@
+{
+  "source": "forest.blend",
+  "homes": [
+    [
+      -9,
+      6
+    ],
+    [
+      0,
+      10
+    ],
+    [
+      9,
+      6
+    ],
+    [
+      -11,
+      -5
+    ],
+    [
+      0,
+      -10
+    ],
+    [
+      11,
+      -5
+    ]
+  ],
+  "places": {
+    "park": [
+      -6,
+      0
+    ],
+    "library": [
+      -15,
+      6
+    ],
+    "growth": [
+      15,
+      7
+    ],
+    "play": [
+      8,
+      -13
+    ],
+    "class": [
+      -9,
+      -13
+    ],
+    "workshop": [
+      0,
+      17
+    ],
+    "shop": [
+      6,
+      0
+    ]
+  },
+  "groups": [
+    "Terrain",
+    "Cabin_00",
+    "Cabin_01",
+    "Cabin_02",
+    "Cabin_03",
+    "Cabin_04",
+    "Cabin_05",
+    "Plants",
+    "Plaza",
+    "TogetherTree",
+    "Orb_0",
+    "Orb_1",
+    "Orb_2",
+    "Place_park",
+    "Paths_park",
+    "Place_library",
+    "Paths_library",
+    "Place_growth",
+    "Paths_growth",
+    "Place_play",
+    "Paths_play",
+    "Place_class",
+    "Paths_class",
+    "Place_workshop",
+    "Paths_workshop",
+    "Place_shop",
+    "Paths_shop",
+    "HomeShell",
+    "Sofa",
+    "Rug",
+    "Table",
+    "Book",
+    "Shelf",
+    "Camera",
+    "Wish",
+    "Doorplate",
+    "Mailbox",
+    "PlantDecor",
+    "FlowerDecor",
+    "GiftDecor",
+    "Avatar_Torso",
+    "Avatar_Head",
+    "Avatar_ArmL",
+    "Avatar_ArmR",
+    "Avatar_LegL",
+    "Avatar_LegR"
+  ],
+  "vertices": 149054
+}

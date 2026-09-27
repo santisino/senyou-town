@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#e9eddd" />
+    <meta
+      name="description"
+      content="蚂蚁森友会：一间小屋，慢慢认识一个人。Blender 3D 互动演示。"
+    />
+    <title>蚂蚁森友会 · 百蚂村</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ctext y='31' font-size='32'%3E🌱%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./refinements.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "../vendor/three.module.js",
+          "three/addons/": "../vendor/addons/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main id="world" aria-label="可探索的森林世界"></main>
+    <header>
+      <a class="brand" href="./">森友会<span>一间小屋，慢慢认识一个人</span></a>
+      <div class="village-name" id="village-name">百蚂村</div>
+      <button class="subtle" id="presenter-entry">演示者</button>
+    </header>
+    <aside id="mission"></aside>
+    <nav id="navigation" aria-label="森林导航"></nav>
+    <div id="scene-caption"></div>
+    <div id="movement-help">
+      WASD / 方向键走动 · 点击地面前往 · E 与附近物件互动
+    </div>
+    <div id="joystick" aria-label="拖动摇杆移动人物"><span></span></div>
+    <div id="loading">
+      <div class="loader-leaf">✦</div>
+      <h1>一片森林，等你入住。</h1>
+      <p>正在铺好林间小路……</p>
+    </div>
+    <div id="panel-root"></div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <div class="demo-label">体验 Demo · 虚构居民 · 本地保存</div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
