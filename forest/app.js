@@ -1278,4 +1278,5 @@ async function init() {
       '<h1>森林还没加载好</h1><p>请检查网络后再试一次。你的本地填写不会被清除。</p><button onclick="location.reload()">重新加载</button>';
   }
 }
+window.addEventListener("resize", () => { if (world) hud(); });
 init();
