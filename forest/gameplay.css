@@ -1,0 +1,42 @@
+/* The world is the primary interface. Only nearby interactions open reading UI. */
+#house-tools { display:none !important; }
+#mission, body[data-scene="home"] #mission { top:94px;bottom:auto;left:24px;width:300px;padding:15px 20px;display:block;pointer-events:none;background:#fffaf0e8; }
+#mission h2 { font-size:19px;margin:5px 0; }
+#mission p { font-size:12px;line-height:1.7;margin:0; }
+#mission .step { font-size:10px; }
+#navigation { width:auto;left:auto;right:24px;bottom:45px;transform:none; }
+#navigation [hidden] { display:none; }
+.scrim:has(.npc-dialog) { background:transparent;backdrop-filter:none;align-items:flex-end;padding-bottom:40px; }
+.npc-dialog { width:720px;max-height:56dvh;background:#fff9e9f5;border:2px solid #c7ba94;border-radius:28px; }
+.npc-dialog .panel-head { padding:18px 28px 12px; }
+.npc-dialog .panel-body { padding:14px 28px; }
+.npc-dialog .quote { font-size:22px;line-height:1.65; }
+.npc-dialog .panel-foot { padding:12px 28px 18px; }
+.station-panel { width:600px; }
+.scrim { backdrop-filter:none; background:#253d252b; }
+.scrim:has(.station-panel) { background:transparent;align-items:center;justify-content:flex-end;padding:20px 30px; }
+.station-panel { width:490px;max-height:82dvh;background:#fffaf0f5; }
+.station-intro { color:#65755f; margin-bottom:16px; }
+.station-checklist p { padding:12px;border-bottom:1px solid #e1ddcd; }
+.world-pin { max-width:170px;white-space:normal;font-size:12px; }
+.world-pin.near { background:#385f41;color:#fff8e8;box-shadow:0 0 0 4px #fcf3c977; }
+.player-label { position:absolute;left:0;top:0;pointer-events:none;padding:4px 9px;border-radius:12px;background:#bd7850;color:#fff8e8;font-size:11px;box-shadow:0 2px 8px #453c2633; }
+.player-label[hidden] { display:none; }
+body.panel-open #mission, body.panel-open #navigation { visibility:hidden; }
+body[data-scene="home"] .pins { display:block; }
+@media(max-width:700px) {
+  #mission,body[data-scene="home"] #mission { top:78px;left:12px;width:240px;padding:10px 14px; }
+  #mission h2,body[data-scene="home"] #mission h2 { font-size:15px; }
+  #mission p,body[data-scene="home"] #mission p { display:block;font-size:10px; }
+  #navigation { left:auto;right:12px;bottom:52px;max-width:220px;flex-wrap:wrap;justify-content:flex-end; }
+  #navigation button { font-size:12px;padding:10px 13px; }
+  .world-pin { padding:6px 9px;font-size:10px;max-width:130px;min-height:32px; }
+  .scrim:has(.npc-dialog) { padding:12px 12px 28px; }
+  .npc-dialog { max-height:65dvh;border-radius:22px; }
+  .npc-dialog .panel-head,.npc-dialog .panel-body,.npc-dialog .panel-foot { padding:14px 18px; }
+  .npc-dialog .quote { font-size:17px; }
+  .scrim:has(.station-panel) {padding:12px;align-items:flex-end;}
+  .station-panel {width:100%;max-height:75dvh;}
+  #movement-help { max-width:220px;font-size:10px; }
+  #scene-caption { display:none; }
+}

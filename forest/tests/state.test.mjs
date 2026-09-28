@@ -13,6 +13,7 @@ import {
   STORAGE,
 } from "../state.js";
 import { FIELDS } from "../data.js";
+import { STATIONS, findPath } from "../journey.js";
 import { encodeVillage, decodeVillage } from "../config.js";
 test("village invitation roundtrips Chinese and special characters", async () => {
   const v={...fresh().village,name:"百蚂 & <摄影村> 🌿",welcome:"你好，森林！"};
@@ -40,6 +41,22 @@ test("empty resident cannot finish decoration-only", () => {
   assert.equal(ready(resident(s)), false);
   assert.throws(() => act(s, { type: "confirm" }));
 });
+test("filled form alone cannot bypass mayor and physical station completion",()=>{
+ let s=act(fresh(),{type:'profile',name:'小岚',profile:Object.fromEntries(FIELDS.map(([k])=>[k,'我的表达'])),reviewed:true});
+ assert.throws(()=>act(s,{type:'confirm'}));assert.throws(()=>act(s,{type:'finishStation',key:'door'}));
+ s=act(s,{type:'meetMayor'});assert.ok(canVisit(s,'me'));assert.throws(()=>act(s,{type:'confirm'}));
+ for(const key of Object.keys(STATIONS))s=act(s,{type:'finishStation',key});
+ assert.ok(act(s,{type:'confirm'}).residents[0].confirmed);
+});
+test("legacy confirmed residents keep keys when a field becomes incomplete",()=>{
+ let s=act(fresh(),{type:'switch',id:'lin'});s=act(s,{type:'profile',profile:{headline:''}});
+ assert.equal(resident(s).confirmed,false);assert.ok(canVisit(s,'lin'));assert.ok(resident(s).journey.key);
+});
+test("home pathfinding reaches every station without crossing furniture",()=>{
+ const walk=(x,z)=> x>=-3.3&&x<=3.5&&z>=-2.7&&z<=3.15&&!(x< -2.1&&z<1.65)&&!(x< -1.4&&z< -2.15)&&!(x>2.55&&z>2.5)&&Math.hypot(x-.5,z+.3)>=1.37&&!(x>2.45&&z<-.9&&z>-1.8);
+ const points=[[1.75,2.75],[-1,2.75],[-1.75,-1.75],[2,-.25],[2.25,-1.5],[-1,.75],[2.25,2.75],[1,3]];
+ for(const a of points)for(const b of points){if(a===b)continue;const path=findPath(a,b,walk,true);assert.ok(path.length,`${a} to ${b}`);assert.ok(path.every(p=>walk(...p)));assert.deepEqual(path.at(-1),b);}
+});
 test("no-report path confirms all fields with explicit private choices", () => {
   let s = fresh();
   s = act(s, {
@@ -49,6 +66,8 @@ test("no-report path confirms all fields with explicit private choices", () => {
     public: Object.fromEntries(FIELDS.map(([k]) => [k, false])),
     reviewed: true,
   });
+  s = act(s, { type: "meetMayor" });
+  for(const key of Object.keys(STATIONS)) s=act(s,{type:"finishStation",key});
   s = act(s, { type: "confirm" });
   assert.ok(resident(s).confirmed);
   assert.ok(
@@ -68,7 +87,7 @@ test("privacy projection and search never include private facts", () => {
 });
 test("stage cannot be bypassed by alternate resident entrance", () => {
   let s = fresh();
-  assert.ok(canVisit(s, "me"));
+  assert.equal(canVisit(s, "me"),false);
   assert.equal(canVisit(s, "lin"), false);
   s = act(s, { type: "stage", open: true });
   assert.equal(canVisit(s, "lin"), false);

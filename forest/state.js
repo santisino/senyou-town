@@ -1,4 +1,5 @@
 import { seedResidents, blankResident, FIELDS, SHOP } from "./data.js";
+import { journey, STATIONS } from "./journey.js";
 export const STORAGE = "senyou-forest-demo-v1";
 const clone = (x) => structuredClone(x);
 const id = () =>
@@ -64,7 +65,7 @@ export function visible(s, rid, viewer = s.actor) {
 }
 export function canVisit(s, rid) {
   return (
-    rid === s.actor ||
+    (rid === s.actor && journey(resident(s)).key) ||
     (s.stage === "open" &&
       resident(s)?.confirmed &&
       resident(s, rid)?.confirmed)
@@ -73,6 +74,8 @@ export function canVisit(s, rid) {
 export function ready(r) {
   return (
     !!r.name.trim() &&
+    journey(r).key &&
+    Object.keys(STATIONS).every(k=>journey(r).stations.includes(k)) &&
     r.reviewed &&
     FIELDS.every(([k]) => !!r.profile[k]?.trim())
   );
@@ -98,10 +101,22 @@ export function transact(original, action) {
     if (rid === s.actor) fail("请选一位其他居民");
   };
   switch (a.type) {
+    case "meetMayor":
+      if(!me.name.trim() || me.name==="新森友")fail("先告诉村长怎么称呼你");
+      me.journey={...journey(me),metMayor:true,key:true};s.welcomeSeen=true;
+      break;
+    case "finishStation": {
+      const station=STATIONS[a.key];
+      if(!journey(me).key)fail("先找到村长，领取小屋钥匙");
+      if(!station || station.fields.some(k=>!me.profile[k]?.trim()))fail("把这一处写好，或明确选择暂不公开");
+      me.journey={...journey(me),stations:[...new Set([...journey(me).stations,a.key])]};
+      break;
+    }
     case "welcome":
       s.welcomeSeen = true;
       break;
     case "profile": {
+      me.journey ||= journey(me);
       if (a.name !== undefined) me.name = String(a.name).slice(0, 24);
       for (const [k] of FIELDS) {
         if (a.profile?.[k] !== undefined)

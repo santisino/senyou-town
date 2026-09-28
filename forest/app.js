@@ -1,4 +1,4 @@
-import { ForestWorld } from "./world.js";
+import { ForestWorld } from "./world.js?v=walk-v2";
 import { FIELDS, SPACES, SHOP, NOTE } from "./data.js";
 import {
   fresh,
@@ -10,9 +10,10 @@ import {
   matches,
   transact,
   ready,
-} from "./state.js";
+} from "./state.js?v=walk-v2";
 import qrcode from "../vendor/qrcode.mjs";
 import { encodeVillage, decodeVillage } from "./config.js";
+import { journey, nextStation, STATIONS } from "./journey.js";
 const $ = (s) => document.querySelector(s),
   esc = (s) =>
     String(s ?? "").replace(
@@ -29,7 +30,6 @@ const $ = (s) => document.querySelector(s),
 let state = load(),
   world,
   homeId = null,
-  editorStep = 0,
   presenter = false,
   search = "",
   filter = "all",
@@ -37,6 +37,7 @@ let state = load(),
   toastTimer,
   returnFocus,
   directoryScroll = 0;
+let stationKey = "door", mayorTurn = 0;
 const params = new URLSearchParams(location.search);
 if (params.get("village") && !state.welcomeSeen)
   state.village.name = params.get("village").slice(0, 30);
@@ -137,53 +138,13 @@ function hud() {
   document.title = `蚂蚁森友会 · ${state.village.name}`;
   const r = me(),
     isHome = world?.mode === "home";
-  $("#house-tools").innerHTML = isHome
-    ? [
-        ["door", "门牌"],
-        ["interest", "兴趣角"],
-        ["table", "会客桌"],
-        ["wish", "心愿瓶"],
-        ["mail", "礼物"],
-      ]
-        .map(([key, label]) => button(label, "object", `data-key="${key}"`))
-        .join("") + button("出门", "exit-home")
-    : "";
-  let title, copy, cta, action;
-  if (!r.confirmed) {
-    title = "让小屋，长出你的样子";
-    copy = "把喜欢的、擅长的、舒服的相处方式，放进自己的小屋。";
-    cta = Object.values(r.profile).some(Boolean)
-      ? "继续准备我的小屋"
-      : "准备我的小屋";
-    action = "edit";
-  } else if (state.stage !== "open") {
-    title = "小屋准备好了";
-    copy = "你的介绍已经安放妥当。等村长宣布开放，我们就去串门。";
-    cta = "看看我的小屋";
-    action = "own";
-  } else {
-    title = isHome
-      ? homeId === state.actor
-        ? "这是我的生活切片"
-        : `${name(homeId)}，很高兴认识你`
-      : "带着好奇，去敲一扇门";
-    copy = isHome
-      ? "点点物件，读读故事。想连贯地了解，可以翻翻桌上的册子。"
-      : "不急着看完所有人。找一个共同兴趣，或一个想加入的小心愿。";
-    cta = isHome ? "翻翻《小屋里的我》" : "找一位森友";
-    action = isHome ? "book" : "directory";
-  }
-  $("#mission").innerHTML =
-    `<div class="step">${state.stage === "open" ? "串门时间 · 森林已开放" : "入驻时间 · 先认识自己"}</div><h2>${esc(title)}</h2><p>${esc(copy)}</p>${button(cta, action, "", "primary")}`;
-  $("#navigation").innerHTML = [
-    ["森林地图", "map"],
-    ["我的小屋", "own"],
-    ["认识森友", "directory"],
-    ["公共空间", "spaces"],
-    ["礼物信箱", "inbox"],
-  ]
-    .map(([t, a]) => button(t, a))
-    .join("");
+  $("#house-tools").innerHTML = "";
+  let title, copy;
+  const j=journey(r), next=nextStation(r);
+  title=!j.key ? "先逛逛，找到村长" : !r.confirmed ? isHome ? next ? STATIONS[next].title : "翻开册子，确认小屋里的我" : "钥匙收好了，走到我的小屋" : state.stage!=="open" ? "小屋准备好了，等村长开放串门" : "带着好奇，去认识一位森友";
+  copy=!j.key ? "村长在广场等你。走近他，再开始交谈。" : !r.confirmed ? isHome ? "走到物件旁留下故事，再回到房间继续布置。" : "可以自己走，也可以点小屋沿路过去。" : isHome ? "走近物件，读读这个人的故事。" : "公园公告栏有居民名册。先发现，再沿小路去拜访。";
+  $("#mission").innerHTML=`<div class="step">${esc(state.stage==="open"?"串门时间":"初到森林")}</div><h2>${esc(title)}</h2><p>${esc(copy)}</p>`;
+  $("#navigation").innerHTML=(isHome?button("走到门口出门","exit-home"):button(world?.mode==="overview"?"回到脚下":"俯瞰森林","map"))+button("","interact",'id="near-action" hidden',"primary");
   $("#scene-caption").textContent = isHome
     ? `${name(homeId)}的小屋 · 每件物品，都藏着一点故事`
     : "风经过树梢，也经过彼此的生活。";
@@ -195,88 +156,73 @@ function hud() {
     world?.mode === "overview" ? "hidden" : "visible";
 }
 function welcome() {
-  panel(
-    `欢迎来到${state.village.name}`,
-    `${state.village.mayor} · 今天的村长`,
-    `<p class="quote">${esc(state.village.welcome)}</p><p>${esc(state.village.goal)}</p><div class="notice">先布置自己的小屋，把个人说明书安放进去。等村长开放村庄，再一起串门，找到想认识的人。</div>`,
-    button("准备我的小屋", "start", "", "primary") +
-      button("先看看森林", "look"),
-    "welcome-panel",
-  );
+  close(); homeId=null; world.town(); hud();
 }
 function mayor() {
+  if(!journey(me()).key) {
+    const lines=[`欢迎来到${esc(state.village.name)}。我是${esc(state.village.mayor)}，这里的村长。你希望大家怎么称呼你？`, `${esc(me().name)}，很高兴认识你。${esc(state.village.goal)} 这里每间小屋，都住着一个有自己故事的人。`, "这把钥匙交给你。先把自己喜欢的事、相处的方式和最近的心愿，放进小屋里的物件。等大家准备好，我们再去串门。"];
+    panel(state.village.mayor+" · 村长","广场上的初次见面",`<p class="quote">${lines[mayorTurn]}</p>${mayorTurn===0?`<label class="field">大家可以叫我<input id="resident-name" maxlength="24" value="${esc(me().name==="新森友"?"":me().name)}" placeholder="你的名字或昵称"></label>`:""}`,button(["你好，我是……","我的小屋能做什么？","收好钥匙，去看看"][mayorTurn],"mayor-next","","primary"),"npc-dialog");
+    return;
+  }
   panel(
     `和${state.village.mayor}聊聊`,
     `${state.village.name} · ${state.stage === "open" ? "串门时间" : "入驻时间"}`,
     `<p class="quote">${esc(state.village.welcome)}</p><p>${esc(state.village.goal)}</p><div class="notice">${state.stage === "open" ? "大家可以去串门啦。收到礼物、看见心愿，都只是认识的开始；是否进一步连接，由你们自己决定。" : "现在先准备自己的小屋，还不能去别人家。线下主持人宣布开放后，会由演示者控制台切换阶段。"}</div>`,
     button(
       me().confirmed ? "回我的小屋" : "继续入驻",
-      me().confirmed ? "own" : "edit",
+      "own",
       "",
       "primary",
-    ) +
-      (presenter
-        ? button(
-            state.stage === "open" ? "回到入驻阶段" : "开放串门",
-            "toggle-stage",
-          )
-        : "") +
-      button("活动扫码入口", "qr"),
+    ) + (me().confirmed && state.stage==="open" ? button("去公园公告栏看看","space",'data-key="park"') : button("再逛逛","close")),
+    "npc-dialog",
   );
 }
-const editorFields = [
-  ["headline", "traits"],
-  ["interests", "story", "help"],
-  ["learning", "collaboration", "wish"],
-];
 function field(k) {
   const [, title, hint] = FIELDS.find((f) => f[0] === k),
     r = me();
   return `<label class="field"><span class="field-title">${esc(title)}<span class="privacy"><input type="checkbox" data-public="${k}" ${r.public[k] ? "checked" : ""}> 对访客公开</span></span><textarea data-profile="${k}" maxlength="600" placeholder="${esc(hint)}">${esc(r.profile[k])}</textarea><small>${esc(hint)}</small><span class="suggestions">${button("暂时不想公开", "private", `data-key="${k}"`)}${k === "wish" ? button("暂时没有心愿", "no-wish") : ""}</span></label>`;
 }
-function edit(step = editorStep) {
-  editorStep = Math.max(0, Math.min(3, Number(step)));
-  if (world) {
-    homeId = state.actor;
-    world.showHome(me());
-    hud();
-  }
-  const progress = `<div class="progress">${[0, 1, 2, 3].map((i) => `<span class="${i <= editorStep ? "active" : ""}"></span>`).join("")}</div>`;
-  if (editorStep === 3) {
-    panel(
-      "把这份介绍，留在我的小屋",
-      "最后一步 · 先以访客的眼光看看",
-      progress +
-        summary(me(), true) +
-        `<label class="checkline"><input id="reviewed" type="checkbox" ${me().reviewed ? "checked" : ""}>我已阅读并确认。这些话代表我当前愿意表达的自己。</label><small>未公开的部分只在主人视角展示。可随时修改；没有人格分数，也不会因为少公开内容而失去装饰。</small>`,
-      button("上一步", "edit-step", 'data-step="2"') +
-        button("确认，完成入驻", "confirm", "", "primary"),
-      "wide",
-    );
+function edit(key = stationKey) {
+  if(typeof key !== "string" || !STATIONS[key]) key = stationKey;
+  stationKey=key;
+  if(homeId!==state.actor || !journey(me()).key) return;
+  const spec=STATIONS[key];
+  let body=`<p class="station-intro">${esc(spec.hint)}</p>`;
+  if(key==="door") body+=`<div class="columns"><label class="field">名字<input id="resident-name" maxlength="24" value="${esc(me().name)}"></label><label class="field">我的衣服<input type="color" id="outfit" value="${me().appearance.outfit}"></label></div><div class="columns"><label class="field">肤色<input type="color" id="skin" value="${me().appearance.skin}"></label><label class="field">发色<input type="color" id="hair" value="${me().appearance.hair}"></label></div><div class="notice">有报告也可以作为表达的起点。${button("看看 DISC 示例参考","report")}</div>`;
+  body+=spec.fields.map(field).join("");
+  if(key==="wish") body+=`<label class="field">想怎样被回应<select id="wish-mode"><option value="intent" ${me().wishMode==="intent"?"selected":""}>先表达一个念头</option><option value="recruit" ${me().wishMode==="recruit"?"selected":""}>邀请两位伙伴，需要我确认</option></select></label>`;
+  panel(spec.title,"正在布置这件物品 · 草稿自动保存",body,button("先放一放，继续逛","close")+button(spec.result,"finish-station",'data-key="'+key+'"',"primary"),"station-panel");
+}
+function inspectBook() {
+  const unfinished=Object.keys(STATIONS).filter(k=>!journey(me()).stations.includes(k));
+  if(unfinished.length) {
+    panel("这本册子，正在收集我的故事","先在小屋里留下表达，再在这里连起来阅读",
+      `<div class="station-checklist">${Object.entries(STATIONS).map(([k,s])=>`<p>${unfinished.includes(k)?"○":"✓"} ${esc(s.title)}</p>`).join("")}</div><p>合上册子，走到还没准备好的物件旁。内容可以自己写，也可以明确选择暂不公开。</p>`,
+      button("合上册子，继续布置","close","","primary"));
     return;
   }
-  let body = progress;
-  if (editorStep === 0)
-    body += `<div class="columns"><label class="field"><span class="field-title">大家怎么称呼你</span><input type="text" id="resident-name" maxlength="24" value="${esc(me().name === "新森友" ? "" : me().name)}" placeholder="你的名字或昵称"></label><label class="field"><span class="field-title">选一件舒服的衣服</span><input type="color" id="outfit" value="${me().appearance.outfit}"></label></div><div class="columns"><label class="field">肤色 <input type="color" id="skin" value="${me().appearance.skin}"></label><label class="field">发色 <input type="color" id="hair" value="${me().appearance.hair}"></label></div><div class="notice">有 DISC 报告？它可以作为开始表达的参考，不替你定义自己。${button("看看示例报告如何辅助", "report")}</div>`;
-  body += editorFields[editorStep].map(field).join("");
-  if (editorStep === 2)
-    body += `<label class="field"><span class="field-title">这个心愿，想怎样被回应</span><select id="wish-mode"><option value="intent" ${me().wishMode === "intent" ? "selected" : ""}>先表达一个念头，看看谁感兴趣</option><option value="recruit" ${me().wishMode === "recruit" ? "selected" : ""}>招募两位伙伴，需要我确认加入</option></select></label>`;
-  panel(
-    ["先认识一下我", "把喜欢的东西，放进小屋", "和我一起，会是什么感觉"][
-      editorStep
-    ],
-    `第 ${editorStep + 1} / 4 步 · 输入自动保存在本机`,
-    body,
-    (editorStep
-      ? button("上一步", "edit-step", `data-step="${editorStep - 1}"`)
-      : "") +
-      button(
-        editorStep === 2 ? "看看我的完整介绍" : "下一步",
-        "edit-next",
-        "",
-        "primary",
-      ),
-  );
+  panel("把这份介绍，留在我的小屋","桌上的册子 · 最后由我确认",summary(me(),true)+`<label class="checkline"><input id="reviewed" type="checkbox" ${me().reviewed?"checked":""}>我已阅读并确认，这些话代表我当前愿意表达的自己。</label>`,button("合上再看看","close")+button("确认，完成入驻","confirm","","primary"),"wide book");
+}
+function walkHome(id) {
+  if(!canVisit(state,id)) { toast(journey(me()).key?"先完成自己的说明书，等待村长开放串门。":"先去广场找村长，领取小屋钥匙。");return; }
+  close();
+  if(world.mode==="home") { exitThen(()=>walkHome(id));return; }
+  world.goHome(id,()=>visit(id));
+  homeId=null;hud();
+}
+function walkObject(key) { close(); world.approach(key); hud(); }
+function walkSpace(key) {
+  close();
+  if(world.mode==="home") { exitThen(()=>walkSpace(key));return; }
+  world.approach("Place_"+key);hud();
+}
+function exitThen(callback) {
+  const door=world.pins.find(p=>p.key==="exit");
+  world.interact({...door,callback:()=>{leaveHome();callback();}});
+}
+function leaveHome() {
+  const point=world.homePoint(homeId || state.actor);
+  homeId=null;close();world.town(point);hud();
 }
 function summary(r, owner = false) {
   const p = owner ? r.profile : profile(r.id).profile;
@@ -297,6 +243,7 @@ function door(id) {
     toast("这里还在准备中。先把自己的小屋布置好吧。");
     return;
   }
+  if(id===state.actor) { visit(id); return; }
   const r = profile(id),
     p = r.profile;
   panel(
@@ -341,6 +288,7 @@ function drawResidents() {
       )}</div>${rows.length ? "" : '<div class="empty">还没有找到。换个关键词，或看看所有森友。</div>'}`;
 }
 function book(chapter = 0) {
+  if(homeId===state.actor && !me().confirmed) { inspectBook();return; }
   if (!homeId) homeId = state.actor;
   if (!canVisit(state, homeId)) {
     toast("这间小屋暂未开放");
@@ -364,7 +312,7 @@ function book(chapter = 0) {
     `${r.name}把想让你知道的事，慢慢写在这里。`,
     `<nav class="chapter">${chapters.map((t, i) => button(`${i + 1}. ${t}`, "chapter", `data-index="${i}"`, i === bookChapter ? "primary" : "")).join("")}</nav><div class="book-spread">${body}</div>`,
     button("合上册子，继续逛", "close") +
-      (homeId === state.actor ? button("修改我的介绍", "edit") : "") +
+      (homeId === state.actor ? button("合上册子，去门牌修改", "object", 'data-key="door"') : "") +
       button(
         bookChapter === 3 ? "回到第一页" : "下一章",
         "chapter",
@@ -376,6 +324,7 @@ function book(chapter = 0) {
 }
 function object(key) {
   if (!homeId || !canVisit(state, homeId)) return;
+  if(homeId===state.actor && STATIONS[key]) { edit(key);return; }
   const r = profile(homeId),
     p = r.profile;
   if (key === "book") {
@@ -532,20 +481,13 @@ function spaces() {
   );
 }
 function space(key) {
+  if(key==="shop" && !journey(me()).key) { toast("先认识村长，领到钥匙再来挑选。 ");return; }
   if (key !== "shop" && (!me().confirmed || state.stage !== "open")) {
     toast("请先入驻，并等待村庄开放。");
     return;
   }
   const spec = SPACES.find((p) => p[0] === key);
   if (!spec) return;
-  if(key === "shop" && state.stage !== "open") {
-    homeId=state.actor;
-    world.showHome(me());
-  } else {
-    homeId = null;
-    world.town();
-    world.pos.set(spec[3][0], 0.33, spec[3][2] + 3);
-  }
   hud();
   const [_, title, sub] = spec;
   if (key === "park") {
@@ -558,7 +500,7 @@ function space(key) {
     panel(
       title,
       sub,
-      wishes
+      `<div class="actions">${button("翻开公告栏上的居民名册","directory","","primary")}</div>` + wishes
         .map(
           (r) =>
             `<div class="result-row"><strong>${esc(r.name)}的心愿</strong><p>${esc(profile(r.id).profile.wish)}</p><div class="actions">${button("去小屋看看", "visit", `data-id="${r.id}"`, "primary")}</div></div>`,
@@ -652,7 +594,7 @@ function presenterPanel() {
       )
       .join(
         "",
-      )}</select>${button("切换到这个角色", "switch-role", "", "primary")}${button(state.stage === "open" ? "关闭串门" : "开放串门", "toggle-stage")}</div><div class="actions">${button("设置村长与村庄", "village")}${button("培训扫码入驻", "qr")}${button("恢复初始演示", "reset", "", "danger")}</div><section class="section"><h3>一条完整经历</h3><p class="muted">章节跳转会准备对应的虚构角色状态；不改写「我的小屋」个人资料。</p><div class="story-list">${["抵达森林，听村长开场", "小林的小屋与完整说明书", "村庄开放，小禾发现摄影心愿", "走进小林家，逐层认识他", "小禾提交同行申请", "切换小林，回应申请", "留份礼物，建立一次连接", "活动之后，在成长林回顾"].map((t, i) => button(t, "story", `data-index="${i}"`)).join("")}</div></section><small>DISC、合拍建议和其他居民均为示例。联系人交换、真实报告、跨设备同步由正式产品实现。</small>`,
+      )}</select>${button("切换到这个角色", "switch-role", "", "primary")}${button(state.stage === "open" ? "关闭串门" : "开放串门", "toggle-stage")}</div><div class="actions">${button("设置村长与村庄", "village")}${button("培训扫码入驻", "qr")}${button("恢复初始演示", "reset", "", "danger")}</div><section class="section"><h3>一条完整经历</h3><p class="muted">章节跳转会准备对应的虚构角色状态；不改写「我的小屋」个人资料。</p><div class="story-list">${["回到森林入口，自由探索", "小林的小屋与完整说明书", "村庄开放，小禾发现摄影心愿", "走进小林家，逐层认识他", "小禾提交同行申请", "切换小林，回应申请", "留份礼物，建立一次连接", "活动之后，在成长林回顾"].map((t, i) => button(t, "story", `data-index="${i}"`)).join("")}</div></section><small>DISC、合拍建议和其他居民均为示例。联系人交换、真实报告、跨设备同步由正式产品实现。</small>`,
     "",
     "wide",
   );
@@ -706,7 +648,7 @@ function story(i) {
     book();
   }
   if (i === 2) {
-    world.town();
+    homeId=null;world.town([-6,2.5]);
     space("park");
   }
   if (i === 3) {
@@ -731,13 +673,14 @@ function story(i) {
       commit({ type: "request", to: "lin" });
       commit({ type: "switch", id: old });
     }
-    inbox();
+    visit("lin");inbox();
   }
   if (i === 6) {
     visit("lin");
     gift();
   }
   if (i === 7) {
+    homeId=null;world.town([15,-4.5]);
     space("growth");
   }
   hud();
@@ -806,41 +749,20 @@ document.addEventListener("click", async (e) => {
   }
   try {
     switch (a) {
+      case "interact": world.interact(world.nearest); break;
+      case "mayor-next":
+        if(!me().name.trim() || me().name==="新森友") { toast("先告诉村长怎么称呼你吧。");break; }
+        if(mayorTurn<2) { mayorTurn++;mayor(); }
+        else if(commit({type:"meetMayor"})) { close();hud();toast("钥匙收好了。沿路去找标着「我的小屋」的木屋吧。"); }
+        break;
+      case "finish-station":
+        if(commit({type:"finishStation",key:d.key})) { close();world.updateProps(me());world.refreshPins();toast(STATIONS[d.key].result+"。回到房间，继续认识自己。");hud(); }
+        break;
       case "close":
         close();
         break;
-      case "start":
-        commit({ type: "welcome" });
-        editorStep = 0;
-        edit();
-        break;
-      case "look":
-        commit({ type: "welcome" });
-        close();
-        world.town();
-        hud();
-        break;
-      case "edit":
-        edit(0);
-        break;
-      case "edit-step":
-        edit(d.step);
-        break;
-      case "edit-next": {
-        if (editorStep === 0 && !me().name.trim()) {
-          toast("先留下一个称呼吧");
-          break;
-        }
-        const missing = editorFields[editorStep].some(
-          (k) => !me().profile[k].trim(),
-        );
-        if (missing) {
-          toast("请补充这一页，也可以明确选择暂不公开。");
-          break;
-        }
-        edit(editorStep + 1);
-        break;
-      }
+      case "edit": walkObject("door"); break;
+      case "edit-step": edit(stationKey); break;
       case "private":
         commit({
           type: "profile",
@@ -855,23 +777,21 @@ document.addEventListener("click", async (e) => {
         break;
       case "confirm":
         if (commit({ type: "confirm" })) {
-          visit(state.actor);
+          close();hud();
           toast("小屋准备好了，你的说明书已经安放在桌上。");
         }
         break;
       case "own":
-        visit(state.actor);
+        walkHome(state.actor);
         break;
       case "exit-home":
-        homeId = null;
-        world.town();
-        close();
-        hud();
+        walkObject("exit");
         break;
       case "map":
-        homeId = null;
-        world.overview();
         close();
+        if(world.mode==="home") { toast("先走到门口出门，再俯瞰森林。");break; }
+        if(world.mode==="overview") {world.mode="town";world.avatar.visible=true;}
+        else world.overview();
         hud();
         break;
       case "directory":
@@ -879,28 +799,28 @@ document.addEventListener("click", async (e) => {
         break;
       case "visit":
         directoryScroll = $(".panel-body")?.scrollTop || 0;
-        visit(d.id);
+        walkHome(d.id);
         break;
       case "book":
-        book();
+        walkObject("book");
         break;
       case "chapter":
         book(d.index);
         break;
       case "object":
-        object(d.key);
+        walkObject(d.key);
         break;
       case "spaces":
         spaces();
         break;
       case "space":
-        space(d.key);
+        walkSpace(d.key);
         break;
       case "inbox":
-        inbox();
+        walkObject("mail");
         break;
       case "gift":
-        gift();
+        walkObject("mail");
         break;
       case "send-gift":
         if (
@@ -912,7 +832,7 @@ document.addEventListener("click", async (e) => {
           })
         ) {
           close();
-          world.showHome(profile(homeId));
+          world.updateProps(profile(homeId));
           toast("礼物已经留在门口，等待对方回应。");
         }
         break;
@@ -922,7 +842,7 @@ document.addEventListener("click", async (e) => {
       case "recycle":
         if (commit({ type: "recycle", item: d.id })) {
           toast("已回收，获得 8 森友币。");
-          inbox();
+          if(homeId===state.actor) inbox();else gift();
         }
         break;
       case "signature":
@@ -939,7 +859,7 @@ document.addEventListener("click", async (e) => {
           })
         ) {
           toast("招牌礼物已保存。");
-          inbox();
+          if(homeId===state.actor) inbox(); else gift();
         }
         break;
       case "buy":
@@ -1017,8 +937,7 @@ document.addEventListener("click", async (e) => {
           })
         ) {
           toast("协作介绍已更新，册子与小屋同步。");
-          visit(state.actor);
-          object("table");
+          close();
         }
         break;
       case "garden":
@@ -1074,7 +993,6 @@ document.addEventListener("click", async (e) => {
         if (!presenter) break;
         commit({ type: "stage", open: state.stage !== "open" });
         close();
-        world.town();
         hud();
         toast(
           state.stage === "open"
@@ -1179,7 +1097,7 @@ document.addEventListener("click", async (e) => {
       case "reset-confirm":
         if (presenter && saveState(fresh())) {
           homeId = null;
-          world.overview();
+          world.town();
           close();
           welcome();
         }
@@ -1263,19 +1181,17 @@ async function init() {
       if (hit.type === "object") object(hit.key);
       if (hit.type === "space") space(hit.key);
       if (hit.type === "exit") {
-        homeId = null;
-        world.town();
-        close();
-        hud();
+        leaveHome();
       }
     });
     await world.load();
     world.setState(state);
+    world.town();
     $("#loading").remove();
     hud();
-    if (!state.welcomeSeen) welcome();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
+      build: "walk-v2-20260928",
       snapshot: () => structuredClone(state),
       position: () => world.pos.toArray(),
       metrics: () => ({
@@ -1284,6 +1200,8 @@ async function init() {
         triangles: world.renderer.info.render.triangles,
       }),
       mode: () => world.mode,
+      interaction: () => structuredClone(world.lastInteraction || null),
+      route: () => ({length:world.route?.length || 0, target:world.pending?.key || null}),
     };
   } catch (e) {
     console.error(e);
@@ -1292,4 +1210,5 @@ async function init() {
   }
 }
 window.addEventListener("resize", () => { if (world) hud(); });
+window.addEventListener("forest-mode", () => { if(world)hud(); });
 init();
