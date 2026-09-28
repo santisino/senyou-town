@@ -18,7 +18,7 @@
     />
     <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./refinements.css" />
-    <link rel="stylesheet" href="./gameplay.css" />
+    <link rel="stylesheet" href="./gameplay.css?v=camera-v3" />
     <script type="importmap">
       {
         "imports": {
@@ -38,6 +38,10 @@
     <aside id="mission"></aside>
     <nav id="navigation" aria-label="森林导航"></nav>
     <nav id="house-tools" aria-label="屋内物件"></nav>
+    <aside id="camera-tools" aria-label="镜头控制">
+      <span id="camera-status">镜头跟随人物</span>
+      <div><button data-action="camera-in" aria-label="拉近镜头" title="拉近镜头">＋</button><button data-action="camera-out" aria-label="拉远镜头" title="拉远镜头">－</button><button data-action="camera-reset" title="回到舒适视角，重新跟随人物">镜头复位</button></div>
+    </aside>
     <div id="scene-caption"></div>
     <div id="movement-help">
       WASD / 方向键走动 · 点击地面前往 · E 与附近物件互动
@@ -51,6 +55,6 @@
     <div id="panel-root"></div>
     <div id="toast" role="status" aria-live="polite"></div>
     <div class="demo-label">场景交互版 · 虚构居民 · 本地保存</div>
-    <script type="module" src="./app.js?v=walk-v2"></script>
+    <script type="module" src="./app.js?v=camera-v3"></script>
   </body>
 </html>

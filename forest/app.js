@@ -1,4 +1,4 @@
-import { ForestWorld } from "./world.js?v=walk-v2";
+import { ForestWorld } from "./world.js?v=camera-v3";
 import { FIELDS, SPACES, SHOP, NOTE } from "./data.js";
 import {
   fresh,
@@ -151,7 +151,8 @@ function hud() {
   $("#movement-help").textContent =
     innerWidth < 700
       ? "拖动左侧摇杆走动 · 点击路面或物件"
-      : "WASD / 方向键走动 · 点击地面前往 · E 与附近物件互动";
+      : "WASD 走动 · 单击前往 · 左键拖动旋转 · 右键拖动平移 · 滚轮缩放";
+  if(innerWidth<700) $("#movement-help").textContent="摇杆走路 · 单指拖动转视角 · 双指缩放/平移 · 轻点互动";
   $("#joystick").style.visibility =
     world?.mode === "overview" ? "hidden" : "visible";
 }
@@ -749,6 +750,9 @@ document.addEventListener("click", async (e) => {
   }
   try {
     switch (a) {
+      case "camera-in": world.cameraRig.zoom(.8);break;
+      case "camera-out": world.cameraRig.zoom(1.25);break;
+      case "camera-reset": world.cameraRig.frame();break;
       case "interact": world.interact(world.nearest); break;
       case "mayor-next":
         if(!me().name.trim() || me().name==="新森友") { toast("先告诉村长怎么称呼你吧。");break; }
@@ -790,7 +794,7 @@ document.addEventListener("click", async (e) => {
       case "map":
         close();
         if(world.mode==="home") { toast("先走到门口出门，再俯瞰森林。");break; }
-        if(world.mode==="overview") {world.mode="town";world.avatar.visible=true;}
+        if(world.mode==="overview") world.returnToPlayer();
         else world.overview();
         hud();
         break;
@@ -1191,7 +1195,8 @@ async function init() {
     hud();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "walk-v2-20260928",
+      build: "camera-v3-20260928",
+      camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),
       position: () => world.pos.toArray(),
       metrics: () => ({

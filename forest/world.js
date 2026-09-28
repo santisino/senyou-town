@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { SPACES } from "./data.js";
 import { findPath, journey } from "./journey.js";
+import { ForestCamera } from "./camera.js?v=camera-v3";
 const HOME_POS = [
   [-9, -6],
   [0, -10],
@@ -24,10 +25,9 @@ export class ForestWorld {
     this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.scene = new T.Scene();
     this.scene.background = new T.Color("#dce8d1");
-    this.scene.fog = new T.Fog("#dce8d1", 65, 120);
-    this.camera = new T.PerspectiveCamera(38, 1, 0.1, 160);
+    this.scene.fog = new T.Fog("#dce8d1", 360, 650);
+    this.camera = new T.PerspectiveCamera(38, 1, 0.1, 650);
     this.camera.position.set(28, 36, 46);
-    this.aim = new T.Vector3(0, 0, 0);
     this.renderer = new T.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
@@ -57,6 +57,7 @@ export class ForestWorld {
     this.ray = new T.Raycaster();
     this.plane = new T.Plane(new T.Vector3(0, 1, 0), -0.32);
     this.pos = new T.Vector3(0, 0.32, 4.5);
+    this.cameraRig = new ForestCamera(this);
     window.addEventListener("keydown", (e) => {
       if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || this.blocked)
         return;
@@ -75,7 +76,6 @@ export class ForestWorld {
       this.keys = {};
       this.joy = { x: 0, y: 0 };
     });
-    this.renderer.domElement.addEventListener("pointerup", (e) => this.pick(e));
     this.resize = () => {
       const w = el.clientWidth,
         h = el.clientHeight;
@@ -187,6 +187,7 @@ export class ForestWorld {
     this.avatar.visible = false;
     this.cancelRoute();
     this.refreshPins();
+    this.cameraRig.frame();
   }
   town(position = [3.5, 5.5]) {
     this.mode = "town";
@@ -196,6 +197,11 @@ export class ForestWorld {
     this.pos.set(position[0], 0.32, position[1]);
     this.cancelRoute();
     this.refreshPins();
+    this.cameraRig.frame();
+  }
+  returnToPlayer() {
+    this.mode='town';this.avatar.visible=true;this.cameraRig.frame();
+    window.dispatchEvent(new Event('forest-mode'));
   }
   showHome(r) {
     this.cancelRoute();
@@ -205,6 +211,7 @@ export class ForestWorld {
     this.home.visible = true;
     this.avatar.visible = true;
     this.pos.set(1.7, 0.33, 2.7);
+    this.cameraRig.frame();
     this.target = null;
     this.updateProps(r);
     this.home.getObjectByName("FlowerDecor").visible =
@@ -263,10 +270,11 @@ export class ForestWorld {
     const el = document.createElement("button");
     el.className = "world-pin";
     el.textContent = label;
+    el.title = label + " · 点击走过去";
     el.dataset.key = key;
     el.style.visibility='hidden';
     const pin = { el, pos: new T.Vector3(...pos), callback, key, approach: approach || [pos[0], pos[2]] };
-    el.onclick = () => this.interact(pin);
+    el.onclick = e => { if(e.detail===0 || performance.now()>this.cameraRig.suppressClickUntil) this.interact(pin); };
     this.layer.append(el);
     this.pins.push(pin);
   }
@@ -279,7 +287,7 @@ export class ForestWorld {
   distance(pin) { return Math.hypot(this.pos.x-pin.approach[0], this.pos.z-pin.approach[1]); }
   interact(pin) {
     if (!pin || this.blocked) return;
-    if (this.mode === "overview") { this.mode="town"; this.avatar.visible=true; window.dispatchEvent(new Event('forest-mode')); }
+    if (this.mode === "overview") this.returnToPlayer();
     if (this.distance(pin) < 0.75) { this.cancelRoute(); this.lastInteraction={key:pin.key,distance:this.distance(pin)}; pin.callback(); return; }
     this.walkTo(pin.approach, pin);
   }
@@ -391,9 +399,8 @@ export class ForestWorld {
       }
     }
     if (this.mode === "overview") {
-      this.mode="town";
-      this.avatar.visible=true;
-      window.dispatchEvent(new Event('forest-mode'));
+      // Keep the ray from the view the player clicked before restoring the walking view.
+      this.returnToPlayer();
     }
     const hit = new T.Vector3();
     if (this.ray.ray.intersectPlane(this.plane, hit)) {
@@ -420,6 +427,7 @@ export class ForestWorld {
   }
   setBlocked(b) {
     this.blocked = b;
+    this.cameraRig.controls.enabled=!b;
     if (b) {
       this.cancelRoute();
       this.keys = {};
@@ -430,7 +438,7 @@ export class ForestWorld {
     for(const mesh of this.faded || []) {mesh.material.opacity=1;mesh.material.transparent=false;mesh.material.depthWrite=true;}
     this.faded=[];
     if(this.mode==="overview")return;
-    const target=this.pos.clone().add(new T.Vector3(0,1.1,0));
+    const target=this.mode==='home'||!this.cameraRig.follow ? this.cameraRig.controls.target.clone() : this.pos.clone().add(new T.Vector3(0,1.1,0));
     const direction=target.clone().sub(this.camera.position);
     const ray=new T.Raycaster(this.camera.position,direction.clone().normalize(),0,direction.length()-.3);
     const root=this.mode==="home"?this.home:this.village;
@@ -518,31 +526,7 @@ export class ForestWorld {
                 ) * 0.35
               : 0;
       }
-      const mobile = this.el.clientWidth < 700;
-      let dest, aim;
-      if (this.mode === "overview") {
-        dest = new T.Vector3(
-          mobile ? 33 : 28,
-          mobile ? 49 : 36,
-          mobile ? 58 : 43,
-        );
-        aim = new T.Vector3(0, 0, 0);
-      } else if (this.mode === "home") {
-        dest = new T.Vector3(
-          mobile ? 12 : 9,
-          mobile ? 14 : 8.5,
-          mobile ? 19 : 12,
-        );
-        aim = new T.Vector3(0, 1, 0);
-      } else {
-        dest = this.pos
-          .clone()
-          .add(new T.Vector3(7, mobile ? 15 : 12, mobile ? 14 : 11));
-        aim = this.pos.clone();
-      }
-      this.camera.position.lerp(dest, Math.min(1, dt * 4));
-      this.aim.lerp(aim, Math.min(1, dt * 4));
-      this.camera.lookAt(this.aim);
+      this.cameraRig.update();
       const pv=this.pos.clone().add(new T.Vector3(0,2.25,0)).project(this.camera);
       this.playerLabel.hidden=this.mode==='overview';
       this.playerLabel.textContent='我 · '+(this.state?.residents.find(r=>r.id===this.state.actor)?.name || '新森友');
@@ -552,11 +536,13 @@ export class ForestWorld {
       let nearest = .75;
       const placed = [];
       for (const p of this.pins) {
+        const distant=this.mode!=='home' && this.cameraRig.controls.getDistance()>110 && p.key!=='mayor' && p.el.textContent!=='我的小屋';
+        p.el.classList.toggle('distant',distant);
         const v = p.pos.clone().project(this.camera);
         const x = (v.x * 0.5 + 0.5) * this.el.clientWidth;
         let y = (-v.y * 0.5 + 0.5) * this.el.clientHeight;
-        p.el.hidden = v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 || (this.mode==="town" && this.distance(p)>17);
-        if (!p.el.hidden) {
+        p.el.hidden = v.z > 1 || v.z < -1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 || (this.mode==="town" && this.distance(p)>Math.max(17,this.cameraRig.controls.getDistance()));
+        if (!p.el.hidden && !distant) {
           for (
             let i = 0;
             i < 4 &&

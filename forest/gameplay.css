@@ -1,5 +1,14 @@
 /* The world is the primary interface. Only nearby interactions open reading UI. */
 #house-tools { display:none !important; }
+#world {touch-action:none;}
+#world canvas {cursor:grab;}
+#world canvas:active {cursor:grabbing;}
+#camera-tools {position:absolute;z-index:3;right:24px;top:100px;text-align:right;}
+#camera-tools span {display:block;font-size:11px;color:#426045;margin:0 4px 8px;}
+#camera-tools div {display:flex;gap:5px;}
+#camera-tools button {background:#fffaf0e8;padding:8px 12px;font-size:12px;min-width:44px;}
+body.panel-open #camera-tools {visibility:hidden;}
+#movement-help {background:#fff9e8df;border-radius:12px;padding:6px 10px;}
 #mission, body[data-scene="home"] #mission { top:94px;bottom:auto;left:24px;width:300px;padding:15px 20px;display:block;pointer-events:none;background:#fffaf0e8; }
 #mission h2 { font-size:19px;margin:5px 0; }
 #mission p { font-size:12px;line-height:1.7;margin:0; }
@@ -20,11 +29,17 @@
 .station-checklist p { padding:12px;border-bottom:1px solid #e1ddcd; }
 .world-pin { max-width:170px;white-space:normal;font-size:12px; }
 .world-pin.near { background:#385f41;color:#fff8e8;box-shadow:0 0 0 4px #fcf3c977; }
+.world-pin.distant {width:18px;min-height:18px;height:18px;padding:0;font-size:0;border:3px solid #fff7df;background:#738d65;box-shadow:0 1px 4px #23332166;}
+.world-pin.distant:after {display:none;}
+.world-pin.distant:hover,.world-pin.distant:focus-visible {width:auto;height:auto;font-size:11px;padding:5px 10px;color:#fff9e8;}
 .player-label { position:absolute;left:0;top:0;pointer-events:none;padding:4px 9px;border-radius:12px;background:#bd7850;color:#fff8e8;font-size:11px;box-shadow:0 2px 8px #453c2633; }
 .player-label[hidden] { display:none; }
 body.panel-open #mission, body.panel-open #navigation { visibility:hidden; }
 body[data-scene="home"] .pins { display:block; }
 @media(max-width:700px) {
+  #camera-tools {top:176px;right:12px;}
+  #camera-tools span {font-size:10px;}
+  #camera-tools button {padding:7px 9px;font-size:11px;}
   #mission,body[data-scene="home"] #mission { top:78px;left:12px;width:240px;padding:10px 14px; }
   #mission h2,body[data-scene="home"] #mission h2 { font-size:15px; }
   #mission p,body[data-scene="home"] #mission p { display:block;font-size:10px; }
@@ -37,6 +52,6 @@ body[data-scene="home"] .pins { display:block; }
   .npc-dialog .quote { font-size:17px; }
   .scrim:has(.station-panel) {padding:12px;align-items:flex-end;}
   .station-panel {width:100%;max-height:75dvh;}
-  #movement-help { max-width:220px;font-size:10px; }
+  #movement-help { width:calc(100% - 24px);max-width:360px;font-size:10px;white-space:normal;text-align:center;line-height:1.5; }
   #scene-caption { display:none; }
 }
