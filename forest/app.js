@@ -1,4 +1,5 @@
-import { ForestWorld } from "./world.js?v=village-v4";
+import { ForestWorld } from "./world.js?v=postcards-v1";
+import { createSharing } from "./share-ui.js?v=postcards-v1";
 import { FIELDS, SPACES, SHOP, NOTE } from "./data.js?v=village-v4";
 import {
   fresh,
@@ -40,6 +41,7 @@ let state = load(),
   returnFocus,
   directoryScroll = 0;
 let stationKey = "door", mayorTurn = 0;
+let sharing;
 const params = new URLSearchParams(location.search);
 if (params.get("village") && !state.welcomeSeen)
   state.village.name = params.get("village").slice(0, 30);
@@ -106,6 +108,7 @@ function panel(title, subtitle, body, foot = "", classes = "") {
   $(".close")?.focus({ preventScroll: true });
 }
 function close() {
+  sharing?.dispose();
   document.body.classList.remove("panel-open");
   $("#panel-root").innerHTML = "";
   world?.setBlocked(false);
@@ -211,7 +214,8 @@ function edit(key = stationKey) {
   if(key==="door") body+=`<div class="columns"><label class="field">名字<input id="resident-name" maxlength="24" value="${esc(me().name)}"></label><label class="field">我的衣服<input type="color" id="outfit" value="${me().appearance.outfit}"></label></div><div class="columns"><label class="field">肤色<input type="color" id="skin" value="${me().appearance.skin}"></label><label class="field">发色<input type="color" id="hair" value="${me().appearance.hair}"></label></div><div class="notice">有报告也可以作为表达的起点。${button("看看 DISC 示例参考","report")}</div>`;
   body+=spec.fields.map(field).join("");
   if(key==="wish") body+=`<label class="field">想怎样被回应<select id="wish-mode"><option value="intent" ${me().wishMode==="intent"?"selected":""}>先表达一个念头</option><option value="recruit" ${me().wishMode==="recruit"?"selected":""}>邀请两位伙伴，需要我确认</option></select></label>`;
-  panel(spec.title,"正在布置这件物品 · 草稿自动保存",body,button("先放一放，继续逛","close")+button(spec.result,"finish-station",'data-key="'+key+'"',"primary"),"station-panel");
+  const shareTools = me().confirmed ? key==='wish' ? button("做一张心愿邀请卡","share-open",'data-kind="wish"') : key==='table' ? button("制作同行明信片","share-pairs") : '' : '';
+  panel(spec.title,"正在布置这件物品 · 草稿自动保存",body,button("先放一放，继续逛","close")+button(spec.result,"finish-station",'data-key="'+key+'"',"primary")+shareTools,"station-panel");
 }
 function inspectBook() {
   const unfinished=Object.keys(STATIONS).filter(k=>!journey(me()).stations.includes(k));
@@ -332,6 +336,7 @@ function book(chapter = 0) {
     `${r.name}把想让你知道的事，慢慢写在这里。`,
     `<nav class="chapter">${chapters.map((t, i) => button(`${i + 1}. ${t}`, "chapter", `data-index="${i}"`, i === bookChapter ? "primary" : "")).join("")}</nav><div class="book-spread">${body}</div>`,
     button("合上册子，继续逛", "close") +
+      (homeId === state.actor ? button("做我的森林名片", "share-open", 'data-kind="profile"') : "") +
       (homeId === state.actor ? button("合上册子，去门牌修改", "object", 'data-key="door"') : "") +
       button(
         bookChapter === 3 ? "回到第一页" : "下一章",
@@ -344,6 +349,7 @@ function book(chapter = 0) {
 }
 function object(key) {
   if (!homeId || !canVisit(state, homeId)) return;
+  if(key==='photo') { if(homeId===state.actor && me().confirmed)sharing.studio();return; }
   if(homeId===state.actor && STATIONS[key]) { edit(key);return; }
   const r = profile(homeId),
     p = r.profile;
@@ -396,6 +402,7 @@ function object(key) {
     sub,
     body || "<p>主人暂时没有公开这部分内容。</p>",
     button("翻翻完整册子", "book") +
+      (key === 'table' ? button("制作同行明信片", "share-pairs") : '') +
       (r.id !== state.actor
         ? button("留一份小礼物", "gift")
         : button("修改我的介绍", "edit")),
@@ -477,7 +484,7 @@ function inbox() {
   panel(
     "我的礼物信箱",
     `${me().name} · 本地演示消息，不会发送到真实账号`,
-    body,
+    body + sharing.inboxHTML(),
   );
 }
 function signature() {
@@ -589,7 +596,7 @@ function space(key) {
       title,
       sub,
       `<h3>一起做一张「百蚂村午休地图」</h3><p>小林的点子：标出适合拍照的角落。<br>小禾的补充：加一条适合慢慢走的路线。<small>以上为虚构搭档的示例贡献。</small></p><label class="field" style="margin-top:20px">我能贡献的一小块<textarea id="workshop-note" maxlength="600" placeholder="一个地点、一点经验，或一件愿意帮忙的事。">${esc(result?.contribution || "")}</textarea></label>${result ? `<div class="notice">成果卡已保存：${esc(result.contribution)}</div>` : ""}`,
-      button("把贡献放进成果卡", "save-workshop", "", "primary"),
+      button("把贡献放进成果卡", "save-workshop", "", "primary") + (result ? button("制作共创成果卡", "share-open", 'data-kind="work"') : ''),
     );
     return;
   }
@@ -756,6 +763,7 @@ document.addEventListener("click", async (e) => {
   if (!b) return;
   const a = b.dataset.action,
     d = b.dataset;
+  if(await sharing?.handle(a,d)) return;
   if (
     [
       "buy",
@@ -819,8 +827,8 @@ document.addEventListener("click", async (e) => {
         break;
       case "confirm":
         if (commit({ type: "confirm" })) {
-          close();hud();
-          toast("欢迎牌挂好了，小屋亮灯了。你的介绍已确认，开放串门后再迎接邻居。");
+          world.refreshPins();close();hud();
+          toast("欢迎牌挂好了！可以到屋里的留影相机拍张明信片，再迎接邻居。");
         }
         break;
       case "own":
@@ -1229,13 +1237,14 @@ async function init() {
       }
     });
     await world.load();
+    sharing = createSharing({getState:()=>state,getWorld:()=>world,panel,button,esc,saveState,toast});
     world.setState(state);
     world.town();
     $("#loading").remove();
     hud();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "village-v4-20260928",
+      build: "postcards-v1-20260928",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),

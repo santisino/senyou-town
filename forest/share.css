@@ -1,0 +1,21 @@
+.share-panel { max-width: 1050px; }
+.share-layout { display: grid; grid-template-columns: minmax(240px,.85fr) minmax(260px,1fr); gap: 30px; align-items: start; }
+.share-settings p { margin-top: 0; }
+.share-fields { margin: 20px 0; padding: 12px 0; border: 0; border-top: 1px solid #d9dfd0; }
+.share-fields legend { font-size: 16px; font-weight: 600; }
+.share-fields .checkline, .share-consent { align-items: flex-start; line-height: 1.6; }
+.share-consent { margin: 22px 0 12px; }
+.share-preview { padding: 12px; background: #e6eadb; border-radius: 12px; }
+#share-image { min-height: 150px; display: grid; place-items: center; color: #54664e; }
+#share-image img { display: block; width: 100%; height: auto; border-radius: 4px; box-shadow: 0 8px 22px #3f513726; -webkit-touch-callout: default; user-select: auto; }
+#share-status { font-size: 13px; line-height: 1.65; color: #586b54; }
+.share-review { max-width: 530px; margin: auto; }
+.share-choices { display: flex; gap: 12px; flex-wrap: wrap; margin: 24px 0; }
+.share-panel button:disabled { opacity: .45; cursor: not-allowed; }
+@media(max-width: 640px) {
+  .share-layout { grid-template-columns: 1fr; gap: 20px; }
+  .share-preview { grid-row: 1; }
+  .share-panel .panel-foot { flex-wrap: wrap; }
+  .share-panel .panel-foot button { flex: 1 1 130px; }
+  .share-panel .panel-body { padding: 18px; }
+}

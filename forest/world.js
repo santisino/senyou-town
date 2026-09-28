@@ -116,6 +116,12 @@ export class ForestWorld {
       this.mayor.rotation.y = 0.4;
       this.home.visible = false;
       this.avatar.visible = false;
+      // Reuse the Blender camera as a dedicated, reachable photo object.
+      const photo = this.home.getObjectByName('Camera').clone(true);
+      photo.name='PhotoStand'; photo.visible=true;
+      const bounds=new T.Box3().setFromObject(photo), center=bounds.getCenter(new T.Vector3());
+      photo.position.add(new T.Vector3(.25-center.x,.55-bounds.min.y,2.6-center.z));
+      this.home.add(photo);
       this.templates=this.root.getObjectByName('Templates');
       this.templates.visible=false;
       this.plots=PLOTS.map(p=>{
@@ -247,6 +253,7 @@ export class ForestWorld {
     this.cameraRig.frame();
     this.target = null;
     this.updateProps(r);
+    this.home.getObjectByName('PhotoStand').visible=r.id===this.state.actor && r.confirmed;
     this.home.getObjectByName("FlowerDecor").visible =
       r.decor.includes("flowers");
     this.home.getObjectByName("PlantDecor").visible =
@@ -290,6 +297,7 @@ export class ForestWorld {
   updateProps(r) {
     if (!this.home) return;
     this.resident = r;
+    this.home.getObjectByName('PhotoStand').visible=r.id===this.state.actor && r.confirmed;
     // Empty physical stations remain in the room: they are where expression begins.
     this.home.getObjectByName("GiftDecor").visible=this.state.gifts.some(g=>g.to===r.id && g.status==='pending');
     const completed=journey(r).stations;
@@ -360,6 +368,8 @@ export class ForestWorld {
         ["mail", "礼物信箱", [3, 1.6, 2.9], [2.25,2.75]],
       ])
         this.pin(label + (this.resident.id===this.state.actor && journey(this.resident).stations.includes(key) ? " ✓" : ""), pos, () => this.onSelect({ type: "object", key }), key, approach);
+      if(this.resident.id===this.state.actor && this.resident.confirmed)
+        this.pin('留影相机',[.25,1.15,2.6],()=>this.onSelect({type:'object',key:'photo'}),'photo',[.2,2.15]);
       this.pin(
         "走回森林",
         [1, 0.3, 3.8],
@@ -433,6 +443,7 @@ export class ForestWorld {
           Wish: "wish",
           Doorplate: "door",
           Mailbox: "mail",
+          PhotoStand: "photo",
         };
         if (this.mode === "home" && objects[o.name]) {
           this.approach(objects[o.name]);
