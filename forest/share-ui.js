@@ -1,7 +1,7 @@
-import { CARD_TYPES, LABELS, cardData, partners, makePairCard, respondCard, pairCardValid, canExportPair } from './share-data.js?v=neighbors-v1';
-import { renderCard } from './share-render.js?v=neighbors-v1';
+import { CARD_TYPES, LABELS, cardData, partners, makePairCard, respondCard, pairCardValid, canExportPair } from './share-data.js?v=villages-v1';
+import { renderCard } from './share-render.js?v=villages-v1';
 
-export function createSharing({ getState, getWorld, panel, button, esc, saveState, toast }) {
+export function createSharing({ getState, getWorld, panel, button, esc, saveState, toast, commit }) {
   let session = null, imageURL = null, generation = 0;
   const $ = s => document.querySelector(s);
   function dispose() { generation++; if (imageURL) URL.revokeObjectURL(imageURL); imageURL = null; session = null; }
@@ -32,7 +32,9 @@ export function createSharing({ getState, getWorld, panel, button, esc, saveStat
     const spec = CARD_TYPES[kind], allowed = spec.fields.filter(k=>data.people.some(p=>p.fields[k]));
     panel(spec.name, '真实场景留影 · 1080 × 1440 PNG',
       `<div class="share-layout"><div class="share-settings"><p>只带上你愿意公开的内容。已隐藏的资料不会进入图片。</p><label class="field">这张卡想说的话（可不填）<textarea id="share-caption" maxlength="80" placeholder="${esc(spec.title)}"></textarea></label><fieldset class="share-fields"><legend>图片包含哪些介绍</legend><p class="muted">姓名／昵称、形象与村名会显示；可取消下列文字。</p>${allowed.map(k=>`<label class="checkline"><input type="checkbox" data-share-field="${k}" checked ${kind==='wish'?'disabled':''}>${esc(LABELS[k])}</label>`).join('') || '<p>本张卡不附加个人资料。</p>'}${kind==='work'?'<p>会显示已提交的贡献。搭档贡献明确标注为示例。</p>':''}</fieldset><label class="field">拍摄角度<select id="share-angle"><option value="front">温暖正面</option><option value="side">侧面留影</option></select></label>${b('生成预览','generate','','primary')}<label class="checkline share-consent"><input id="share-consent" type="checkbox">${kind==='pair'?'我同意公开本版内容，并邀请对方确认。':'我已查看图片，同意将其中内容保存为可转发的图片。'}</label><p class="muted">二维码仅进入通用 Demo，不是你的私人小屋。图片不会自动上传。</p></div><div class="share-preview"><div id="share-image" aria-live="polite">选择内容后，点击「生成预览」。</div><p id="share-status" role="status"></p></div></div>`,
-      kind==='pair' ? b('邀请对方确认这版','request','','primary') : b('下载 PNG','download','','primary') + b('手机系统分享','native'), 'wide share-panel');
+      kind==='pair' ? b('邀请对方确认这版','request','','primary') : b('下载 PNG','download','','primary') + b('手机系统分享','native') + b('复制分享承接链接','copy-link'), 'wide share-panel');
+    const copy=$('.share-settings .muted:last-child');
+    if(copy)copy.textContent='二维码会进入蚂蚁森友村，保留本次分享类型。虚构居民可演示找到邀请人；你的自填资料不上传，跨设备将用小林的示例演示后续体验。不会加入原活动村。';
     updateButtons();
   }
   function options() {
@@ -41,7 +43,7 @@ export function createSharing({ getState, getWorld, panel, button, esc, saveStat
   }
   function updateButtons() {
     const enabled = !!session?.blob && !!$('#share-consent')?.checked;
-    for(const a of ['download','native','request']) { const el=$(`[data-action="share-${a}"]`); if(el)el.disabled=!enabled; }
+    for(const a of ['download','native','request','copy-link']) { const el=$(`[data-action="share-${a}"]`); if(el)el.disabled=!enabled; }
   }
   function invalidated() {
     if (!session || session.record) return;
@@ -74,6 +76,7 @@ export function createSharing({ getState, getWorld, panel, button, esc, saveStat
       $('#share-image').innerHTML=`<img src="${imageURL}" alt="${esc(CARD_TYPES[target.kind].name)}预览" width="1080" height="1440">`;
       $('#share-status').textContent=target.kind==='pair'&&!canExportPair(getState(),getRecord(target.record)) ? '等待双方确认。此预览带有水印，不能下载正式卡。' : '图片已生成。手机可长按图片，使用浏览器提供的保存选项；也可下载或系统分享。';
       updateButtons();
+      commit?.({type:'net:shareCreated',kind:target.kind});
       if(matchMedia('(max-width:640px)').matches)$('#share-image').scrollIntoView({block:'start'});
     } catch(error) {
       if(n===generation&&session===target) {$('#share-image').textContent='图片没有生成，请重试。';$('#share-status').textContent=error.message;target.blob=null;updateButtons();}
@@ -121,6 +124,12 @@ export function createSharing({ getState, getWorld, panel, button, esc, saveStat
           if(!navigator.canShare?.({files:[file]})||!navigator.share){$('#share-status').textContent='当前浏览器不支持系统文件分享。请下载 PNG，或长按上方图片保存后转发。';break;}
           try {await navigator.share({files:[file],title:CARD_TYPES[session.kind].name});}
           catch(e){if(e.name==='AbortError')toast('已取消分享，图片仍在这里。');else $('#share-status').textContent='系统分享未完成。请下载图片，或长按上方图片保存。';}break;
+        }
+        case 'share-copy-link': {
+          exportFile();
+          try{await navigator.clipboard.writeText(session.data.entryUrl);toast('分享承接链接已复制。');}
+          catch{$('#share-status').textContent='请复制链接：'+session.data.entryUrl;}
+          break;
         }
       }
     } catch(error) {toast(error.message);}

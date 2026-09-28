@@ -2,6 +2,7 @@ import { seedResidents, blankResident, FIELDS, SHOP } from "./data.js?v=village-
 import { journey, STATIONS } from "./journey.js?v=village-v4";
 import { claimPlot, advanceCohort, settleSample } from "./settlement.js";
 import { QUESTIONS } from "./interview.js?v=neighbors-v1";
+import { ensureNetwork, checkpoint, netAction, joined, isPublic, activeVillage } from './villages.js?v=villages-v1';
 export const STORAGE = "senyou-forest-village-v2";
 const clone = (x) => structuredClone(x);
 const id = () =>
@@ -15,7 +16,7 @@ export function fresh() {
     ...seedResidents().map(r=>({...r,simulated:true,arrived:false,plot:null,built:false,
       confirmed:false,reviewed:false,journey:{metMayor:false,key:false,stations:[]}})),
   ];
-  return {
+  return ensureNetwork({
     version: 2,
     experience: "opening",
     openingStep: 0,
@@ -53,7 +54,7 @@ export function fresh() {
     connections: [],
     ledger: [],
     publicResults: {},
-  };
+  });
 }
 export const resident = (s, rid = s.actor) =>
   s.residents.find((r) => r.id === rid);
@@ -65,7 +66,7 @@ export function visible(s, rid, viewer = s.actor) {
     profile: Object.fromEntries(
       FIELDS.map(([k]) => [
         k,
-        viewer === rid || (r.confirmed && s.stage==="open" && r.public[k]) ? r.profile[k] : "",
+        viewer === rid || (joined(s,viewer) && joined(s,rid) && r.confirmed && s.stage==="open" && r.public[k]) ? r.profile[k] : "",
       ]),
     ),
     notes: viewer === rid ? r.notes : {},
@@ -73,7 +74,7 @@ export function visible(s, rid, viewer = s.actor) {
   };
 }
 export function canVisit(s, rid) {
-  return (
+  return joined(s) && joined(s,rid) && (
     (rid === s.actor && journey(resident(s)).key && resident(s).built) ||
     (s.stage === "open" &&
       resident(s)?.confirmed &&
@@ -101,6 +102,17 @@ export function matches(s, r, query = "", filter = "all") {
   );
 }
 export function transact(original, action) {
+  if(action.type.startsWith('net:'))return netAction(original,action);
+  const initial=ensureNetwork(clone(original));
+  if(['meetMayor','buildHome','confirm','finishStation','buy','sendGift','request','publicResult'].includes(action.type)) {
+    if(!joined(initial))fail('先到村口找村长，确认加入本村及公开范围。');
+    if(activeVillage(initial).archived)fail('活动已归档。个人资料仍保留，可以去蚂蚁森友村继续探索。');
+  }
+  if(action.type==='stage'&&isPublic(initial)&&!action.open)fail('蚂蚁森友村持续开放，无需村长开场。');
+  if(action.type==='village'&&isPublic(initial)&&action.value?.name&&action.value.name!=='蚂蚁森友村')fail('公共村名称固定为蚂蚁森友村。');
+  return checkpoint(transactCore(initial,action));
+}
+function transactCore(original, action) {
   const s = clone(original),
     a = action,
     me = resident(s),
@@ -458,10 +470,15 @@ export function load(storage = globalThis.localStorage) {
           r.signature,
       )
     )
-      return s;
+      return ensureNetwork(s);
   } catch {}
   return fresh();
 }
 export function persist(s, storage = globalThis.localStorage) {
+  const previous=storage.getItem(STORAGE);
+  let legacy=false;try{legacy=!!previous&&!JSON.parse(previous)?.network;}catch{}
+  if(legacy && !storage.getItem(STORAGE+'-before-villages'))
+    storage.setItem(STORAGE+'-before-villages',previous);
+  checkpoint(s);
   storage.setItem(STORAGE, JSON.stringify(s));
 }

@@ -1,6 +1,6 @@
 import * as T from 'three';
 import qrcode from '../vendor/qrcode.mjs';
-import { CARD_TYPES, LABELS } from './share-data.js?v=postcards-v1';
+import { CARD_TYPES, LABELS } from './share-data.js?v=villages-v1';
 
 export const PUBLIC_DEMO_URL = 'https://santisino.github.io/senyou-town/forest/';
 const INK = '#304b3c', MUTED = '#6d796b', PAPER = '#fcf6e9', ACCENT = '#b96543';
@@ -100,9 +100,9 @@ function line(ctx, text, x, y, width, size = 30, max = 2, color = INK) {
   return Math.min(rows.length, max) * size * 1.5;
 }
 function rounded(ctx, x, y, w, h, radius, fill) { ctx.beginPath(); ctx.roundRect(x, y, w, h, radius); ctx.fillStyle = fill; ctx.fill(); }
-function drawQR(ctx) {
-  const qr = qrcode(0, 'M'); qr.addData(PUBLIC_DEMO_URL); qr.make();
-  const count = qr.getModuleCount(), cell = 4, pad = 4, size = (count + pad * 2) * cell;
+function drawQR(ctx,url) {
+  const qr = qrcode(0, 'M'); qr.addData(url||PUBLIC_DEMO_URL+'?entry=public'); qr.make();
+  const count = qr.getModuleCount(), pad = 4, cell = Math.max(2,Math.floor(180/(count+pad*2))), size = (count + pad * 2) * cell;
   const x = 1008 - size, y = 1234;
   ctx.fillStyle = '#fff'; ctx.fillRect(x, y, size, size); ctx.fillStyle = INK;
   for (let r = 0; r < count; r++) for (let c = 0; c < count; c++) if (qr.isDark(r, c)) ctx.fillRect(x + (c + pad) * cell, y + (r + pad) * cell, cell, cell);
@@ -140,9 +140,9 @@ export async function renderCard(world, data) {
   }
   ctx.strokeStyle = '#d5dcca'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(64, 1212); ctx.lineTo(1016, 1212); ctx.stroke();
   line(ctx, data.kind === 'work' ? '把各自的一点点，拼成共同的可能。' : data.kind === 'wish' ? '带着一个念头，等一次回应。' : '一间小屋，慢慢认识一个人。', 64, 1263, 690, 27, 2);
-  line(ctx, '扫码体验森友会 Demo', 64, 1332, 690, 23, 1, MUTED);
-  line(ctx, '通用体验入口 · 非本人小屋链接', 64, 1367, 690, 21, 1, MUTED);
-  drawQR(ctx);
+  line(ctx, '扫码来到蚂蚁森友村', 64, 1332, 690, 23, 1, MUTED);
+  line(ctx, '分享承接示例 · 自填资料不跨设备上传', 64, 1367, 690, 21, 1, MUTED);
+  drawQR(ctx,data.entryUrl);
   font(ctx, 18); ctx.fillStyle = MUTED; ctx.fillText(data.kind === 'pair' ? '本地演示 · 双方确认本版内容 · 非真实测评报告' : data.kind === 'work' ? '本地演示 · 搭档为示例 · 不代表线下活动已完成' : '本地演示 · 本人选择公开的内容 · 不含原始 DISC 报告', 64, 1412);
   const blob = await new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('图片生成失败，请重试。')), 'image/png'));
   return { blob, canvas };

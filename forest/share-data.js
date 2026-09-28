@@ -1,4 +1,5 @@
 import { PHOTO_SPOTS } from './space-guides.js?v=neighbors-v1';
+import { shareLink } from './villages.js?v=villages-v1';
 // Export only an explicit, public-field whitelist. Never pass raw reports/notes to the compositor.
 export const CARD_TYPES = {
   house: { name: '小屋明信片', title: '在森林里，安了一个家。', fields: ['headline', 'traits'] },
@@ -43,7 +44,7 @@ export function cardData(s, kind, options = {}) {
     fields, angle: ['front', 'side'].includes(options.angle) ? options.angle : 'front',
     created: options.created || new Date().toISOString(),
     wish: kind === 'wish' ? { mode: r.wishMode, capacity: r.capacity, accepted } : null,
-    common, work: work || '', demo: true };
+    common, work: work || '', demo: true, entryUrl:shareLink(s,kind) };
 }
 export function makePairCard(s, options) {
   const data = cardData(s, 'pair', options);
