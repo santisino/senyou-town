@@ -1,5 +1,7 @@
-import { ForestWorld } from "./world.js?v=typing-v1";
-import { createSharing } from "./share-ui.js?v=postcards-v1";
+import { ForestWorld } from "./world.js?v=neighbors-v1";
+import { QUESTIONS, draftProfile } from "./interview.js?v=neighbors-v1";
+import { GUIDES, PHOTO_SPOTS, photoMap, gardenCheck } from "./space-guides.js?v=neighbors-v1";
+import { createSharing } from "./share-ui.js?v=neighbors-v1";
 import { FIELDS, SPACES, SHOP, NOTE } from "./data.js?v=village-v4";
 import {
   fresh,
@@ -11,7 +13,7 @@ import {
   matches,
   transact,
   ready,
-} from "./state.js?v=village-v4";
+} from "./state.js?v=neighbors-v1";
 import qrcode from "../vendor/qrcode.mjs";
 import { encodeVillage, decodeVillage } from "./config.js";
 import { journey, nextStation, STATIONS } from "./journey.js?v=village-v4";
@@ -42,6 +44,8 @@ let state = load(),
   directoryScroll = 0;
 let stationKey = "door", mayorTurn = 0;
 let sharing;
+let interviewGroup='interest', interviewIndex=0;
+let demoVisitTimer;
 const params = new URLSearchParams(location.search);
 if (params.get("village") && !state.welcomeSeen)
   state.village.name = params.get("village").slice(0, 30);
@@ -72,7 +76,7 @@ function toast(text) {
 function commit(a) {
   try {
     const next = transact(state, a);
-    const profileOnly = a.type === "profile" && resident(next).confirmed === me().confirmed;
+    const profileOnly = ['interview','note'].includes(a.type) || (a.type === "profile" && resident(next).confirmed === me().confirmed);
     persist(next);
     state = next;
     world?.setState(state, { profileOnly });
@@ -151,6 +155,9 @@ function hud() {
   copy=!j.key ? "公共空间已经就绪，溪对岸的居民区等我们一起建设。村长在村口等你。" : !r.built ? `钥匙对应 ${address(r)}。过桥后，走到你的宅地开始安家。` : !r.confirmed ? isHome ? "走到物件旁留下故事，再回到房间继续布置。" : "可以自己走，也可以点小屋沿路过去。" : isHome ? "走近物件，读读这个人的故事。" : state.stage!=="open" ? "可以去小铺挑装饰、在信箱制作礼物，或沿路看村庄长出来。" : "公园公告栏有居民名册。先发现，再沿小路去拜访。";
   $("#mission").innerHTML=`<div class="step">${esc(state.stage==="open"?"串门时间":"初到森林")}</div><h2>${esc(title)}</h2><p>${esc(copy)}</p>`;
   $("#navigation").innerHTML=(isHome?button("走到门口出门","exit-home"):button(world?.mode==="overview"?"回到脚下":"俯瞰森林","map"))+button("","interact",'id="near-action" hidden',"primary");
+  const gifts=state.gifts.filter(g=>g.to===state.actor&&g.status==='pending').length;
+  if(r.built && (homeId!==state.actor || !isHome)) $("#navigation").insertAdjacentHTML('beforeend',button(gifts?`回家收礼物 · ${gifts}`:'回我的小屋','own','','home-waypoint'));
+  if(gifts) $("#mission").insertAdjacentHTML('beforeend',`<p class="mail-notice">✉ 信箱有 ${gifts} 份待回应的礼物${state.gifts.some(g=>g.to===state.actor&&g.status==='pending'&&g.demoVisit)?' · 含示例森友来访':''}。${isHome&&homeId===state.actor?'走到信箱旁看看。':'有空回家看看。'}</p>`);
   $("#scene-caption").textContent = isHome
     ? `${name(homeId)}的小屋 · 每件物品，都藏着一点故事`
     : "风经过树梢，也经过彼此的生活。";
@@ -165,6 +172,18 @@ function hud() {
   $("#village-progress").textContent=isHome ? address(resident(state,homeId)) : `50 个宅地 · ${counts.arrived} 位到达 · ${counts.ready} 间准备好`;
   $("#village-progress").style.top=($("#mission").offsetTop+$("#mission").offsetHeight+8)+'px';
   $(".demo-label").textContent=state.experience==='opening'?"共同建村 · 同学进度为本机模拟 · 不跨设备同步":"已建村庄演示 · 虚构居民 · 本地保存";
+  scheduleDemoVisit();
+}
+function scheduleDemoVisit() {
+  if(demoVisitTimer || !me().confirmed || state.stage!=='open' || state.gifts.some(g=>g.to===state.actor&&g.demoVisit))return;
+  const actor=state.actor;
+  demoVisitTimer=setTimeout(()=>{
+    demoVisitTimer=null;
+    if(actor!==state.actor || document.querySelector('.panel') || !me().confirmed || state.stage!=='open') {scheduleDemoVisit();return;}
+    if(state.gifts.some(g=>g.to===actor&&g.demoVisit))return;
+    if(!state.residents.some(r=>r.id!==actor&&r.simulated&&canVisit(state,r.id)&&state.wallets[r.id]?.sent<5&&state.items.some(i=>i.owner===r.id&&i.status==='available')))return;
+    if(commit({type:'demoVisit'}))toast('示例森友来访：家门口留下了一份礼物。有空回去看看，不用马上回应。');
+  },8000);
 }
 function welcome() {
   close(); homeId=null; world.town(); hud();
@@ -213,10 +232,29 @@ function edit(key = stationKey) {
   const spec=STATIONS[key];
   let body=`<p class="station-intro">${esc(spec.hint)}</p>`;
   if(key==="door") body+=`<div class="columns"><label class="field">名字<input id="resident-name" maxlength="24" value="${esc(me().name)}"></label><label class="field">我的衣服<input type="color" id="outfit" value="${me().appearance.outfit}"></label></div><div class="columns"><label class="field">肤色<input type="color" id="skin" value="${me().appearance.skin}"></label><label class="field">发色<input type="color" id="hair" value="${me().appearance.hair}"></label></div><div class="notice">有报告也可以作为表达的起点。${button("看看 DISC 示例参考","report")}</div>`;
-  body+=spec.fields.map(field).join("");
+  if(QUESTIONS[key]) {
+    body+=`<div class="conversation-invite"><span class="eyebrow">${key==='interest'?'从一件喜欢的小事开始':'把工作里的具体时刻，变成相处提示'}</span><h3>${key==='interest'?'不只问你喜欢什么，也聊聊你怎样喜欢它。':'没有标准答案，只有更适合你的合作方式。'}</h3><p>${key==='interest'?'3 道主问，3 道可选追问':'4 道主问，3 道可选追问'}。一次聊一个场景，随时停下。原始回答只有自己看见，整理后由你确认。</p>${button('从具体的小问题开始','interview-start',`data-group="${key}"`,'primary')}</div><details class="profile-direct"><summary>直接编辑我的对外介绍 / 查看已保存内容</summary>${spec.fields.map(field).join('')}</details>`;
+  } else body+=spec.fields.map(field).join("");
   if(key==="wish") body+=`<label class="field">想怎样被回应<select id="wish-mode"><option value="intent" ${me().wishMode==="intent"?"selected":""}>先表达一个念头</option><option value="recruit" ${me().wishMode==="recruit"?"selected":""}>邀请两位伙伴，需要我确认</option></select></label>`;
   const shareTools = me().confirmed ? key==='wish' ? button("做一张心愿邀请卡","share-open",'data-kind="wish"') : key==='table' ? button("制作同行明信片","share-pairs") : '' : '';
   panel(spec.title,"正在布置这件物品 · 草稿自动保存",body,button("先放一放，继续逛","close")+button(spec.result,"finish-station",'data-key="'+key+'"',"primary")+shareTools,"station-panel");
+}
+function interview(group=interviewGroup,index=interviewIndex) {
+  if(homeId!==state.actor || !QUESTIONS[group])return;
+  interviewGroup=group;interviewIndex=Math.max(0,Math.min(index,QUESTIONS[group].length-1));
+  const [key,title,hint,choices,core]=QUESTIONS[group][interviewIndex];
+  const value=me().interview?.[group]?.[key] || '';
+  panel(group==='interest'?'兴趣角 · 聊一件喜欢的事':'会客桌 · 一张情境卡',`${interviewIndex+1} / ${QUESTIONS[group].length} · ${core?'主问':'可选深入'} · 私密草稿自动保存`,
+    `<div class="question-card"><span class="eyebrow">${core?'一个具体的场景':'愿意的话，再多说一点'}</span><h3>${esc(title)}</h3><p>${esc(hint)}</p><div class="actions">${choices.map((t,i)=>button(t,'interview-choice',`data-choice="${i}"`)).join('')}</div><label class="field">用你自己的话说<textarea id="interview-answer" maxlength="90" data-group="${group}" data-question="${key}" placeholder="建议选项只是起点，你可以自由改写。">${esc(value)}</textarea><small>最多 90 字；不想回答，可以明确写“暂时不想公开”。</small></label></div>`,
+    (interviewIndex?button('上一张','interview-prev'):'')+button('先保存，回到小屋','close')+(core?'':button('跳过这道追问','interview-skip'))+button(interviewIndex===QUESTIONS[group].length-1?'整理成我的介绍':'下一张情境卡','interview-next','','primary'),'station-panel');
+}
+function interviewPreview() {
+  const missing=QUESTIONS[interviewGroup].findIndex(q=>q[4]&&!me().interview?.[interviewGroup]?.[q[0]]?.trim());
+  if(missing>=0){toast('这张主问还没留下表达，也可以明确写暂不公开。');interview(interviewGroup,missing);return;}
+  const draft=draftProfile(interviewGroup,me().interview?.[interviewGroup],me().profile);
+  panel('这些话，能代表现在的我吗？','只整理你写过的话，不推断人格；确认前不会替换现有介绍。',
+    `<p>可以继续修改，也可以取消。原始情境回答仍然只有自己看见。</p>${Object.entries(draft).map(([k,v])=>`<label class="field"><span class="field-title">${esc(FIELDS.find(f=>f[0]===k)[1])}<span class="privacy"><input type="checkbox" data-preview-public="${k}" ${me().public[k]?'checked':''}> 对访客公开</span></span><textarea data-preview-profile="${k}" maxlength="600">${esc(v)}</textarea></label>`).join('')}`,
+    button('再想想，不替换','edit-step')+button('确认，放进小屋介绍','interview-apply','','primary'),'station-panel');
 }
 function inspectBook() {
   const unfinished=Object.keys(STATIONS).filter(k=>!journey(me()).stations.includes(k));
@@ -232,8 +270,9 @@ function walkHome(id) {
   if(!(id===state.actor && journey(me()).key) && !canVisit(state,id)) { toast(journey(me()).key?"先完成自己的说明书，等待村长开放串门。":"先去村口找村长，领取宅地钥匙。");return; }
   close();
   if(world.mode==="home") { exitThen(()=>walkHome(id));return; }
+  homeId=null;
   world.goHome(id,()=>id===state.actor ? plotVisit(resident(state,id).plot) : visit(id));
-  homeId=null;hud();
+  hud();
 }
 function walkObject(key) { close(); world.approach(key); hud(); }
 function walkSpace(key) {
@@ -349,7 +388,7 @@ function book(chapter = 0) {
   );
 }
 function object(key) {
-  if (!homeId || !canVisit(state, homeId)) return;
+  if (!homeId || !canVisit(state, homeId)) { toast("这间小屋暂不可互动，请出门后重新进入。");return; }
   if(key==='photo') { if(homeId===state.actor && me().confirmed)sharing.studio();return; }
   if(homeId===state.actor && STATIONS[key]) { edit(key);return; }
   const r = profile(homeId),
@@ -454,7 +493,7 @@ function inbox() {
     incoming
       .map(
         (g) =>
-          `<div class="result-row"><strong>${esc(name(g.from))}留下了${esc(state.items.find((i) => i.id === g.item)?.name)}</strong><p>${esc(g.message)}</p><small>${status[g.status]}</small>${g.status === "pending" ? `<div class="actions">${button("收下礼物", "gift-reply", `data-id="${g.id}" data-reply="accept"`, "primary")}${button("谢谢，先不收下", "gift-reply", `data-id="${g.id}" data-reply="reject"`)}</div>` : ""}${g.status === "accept" ? `<div class="actions">${button("邀请成为森友", "connect", `data-id="${g.from}"`)}${state.items.find((i) => i.id === g.item)?.status === "available" && state.items.find((i) => i.id === g.item)?.owner === state.actor ? button("回收礼物 · +8 币", "recycle", `data-id="${g.item}"`) : ""}</div>` : ""}</div>`,
+          `<div class="result-row gift-letter">${g.demoVisit?'<span class="eyebrow">示例森友来访 · 本机模拟，不是真人在线消息</span>':''}<strong>${esc(name(g.from))}留下了${esc(state.items.find((i) => i.id === g.item)?.name)}</strong><p>${esc(g.message)}</p><small>${status[g.status]}</small>${g.status === "pending" ? `<div class="actions">${button("收下礼物", "gift-reply", `data-id="${g.id}" data-reply="accept"`, "primary")}${button("谢谢，先不收下", "gift-reply", `data-id="${g.id}" data-reply="reject"`)}</div>` : ""}${g.status === "accept" ? `<div class="actions">${button("邀请成为森友", "connect", `data-id="${g.from}"`)}${state.items.find((i) => i.id === g.item)?.status === "available" && state.items.find((i) => i.id === g.item)?.owner === state.actor ? button("回收礼物 · +8 币", "recycle", `data-id="${g.item}"`) : ""}</div>` : ""}<div class="actions">${button('去他家回访','visit',`data-id="${g.from}"`)}</div><small>收下只是接受心意，不会自动成为好友或交换联系方式。</small></div>`,
       )
       .join("") || '<p class="muted">还没有礼物。先去认识一个人吧。</p>';
   body += "</section>" + section("我送出的问候", "");
@@ -509,6 +548,14 @@ function spaces() {
   );
 }
 function space(key) {
+  renderSpace(key);
+  const guide=GUIDES[key];
+  if(guide && me().confirmed && state.stage==='open' && $('.panel-body')) {
+    $('.panel-body').insertAdjacentHTML('afterbegin',`<div class="space-guide"><span class="eyebrow">这里可以做什么</span><h3>${esc(guide[0])}</h3><ol>${guide[1].map(t=>`<li>${esc(t)}</li>`).join('')}</ol></div>`);
+    $('.panel-body').insertAdjacentHTML('beforeend',`<details class="demo-scope"><summary>给演示者：本次体验范围与未来可能</summary><p>${esc(guide[2])}</p></details>`);
+  }
+}
+function renderSpace(key) {
   if(key==="shop" && !journey(me()).key) { toast("先认识村长，领到钥匙再来挑选。 ");return; }
   if (key !== "shop" && (!me().confirmed || state.stage !== "open")) {
     const place=SPACES.find(p=>p[0]===key);
@@ -552,7 +599,7 @@ function space(key) {
     panel(
       title,
       sub,
-      `<p class="quote">认识一个人之后，也重新认识一点自己。</p><p>小练习：回想刚才的一次互动。什么时候你觉得舒服？下次你希望怎样表达？</p><label class="field" style="margin-top:20px"><textarea id="reflection" maxlength="600" placeholder="这条反思默认只有你自己看见。">${esc(me().notes.reflection || "")}</textarea></label><div class="notice">记录不是打分。是否把它写进自己的说明书，由你决定。</div>`,
+      `<p class="quote">不是凭空写感悟，先给自己一次观察。</p><div class="notice"><strong>观察练习：留意一个舒服的配合瞬间</strong><p>下一次串门或合作时，记下：对方做了什么，让你愿意继续聊？如果有点卡住，你希望换一种什么说法？</p>${button(me().notes['growth-task']?'已领取 · 继续带着问题观察':'领取这片观察叶','growth-task')}${button('去游乐场经历一次合作','space','data-key="play"')}</div><label class="field">回想哪一次经历？<input id="reflection-context" maxlength="100" placeholder="比如刚才和伙伴一起安排花园" value="${esc(me().notes['reflection-context']||'')}"></label><label class="field">具体发生了什么？我下次希望怎样配合？<textarea id="reflection" maxlength="600" placeholder="可以先记一个瞬间，不需要上升成性格结论。">${esc(me().notes.reflection || "")}</textarea></label><div class="notice">${me().notes.reflection?'已有一片私密成长叶，随时回来修订。':'你的反思默认只有自己可见。'} 不自动改写说明书，也不进行人格打分。</div>`,
       button("只保存这片成长叶", "save-reflection") +
         button("用它更新我的协作介绍", "reflect-profile", "", "primary"),
     );
@@ -560,20 +607,14 @@ function space(key) {
   }
   if (key === "play") {
     const result = state.publicResults[`${state.actor}:garden`];
+    const mode=state.publicResults[`${state.actor}:garden-mode`];
+    const layout=state.publicResults[`${state.actor}:garden-layout`] || [0,0,0,0,0,0,0,0,0];
+    const checked=gardenCheck(layout),done=state.publicResults[`${state.actor}:garden-done`];
     panel(
       title,
-      sub,
-      `<p>你和小禾（模拟搭档）要一起摆一座小花园。先选你的做法：</p><div class="actions">${button("先商量布局，再一起摆", "garden", 'data-choice="先商量"')}${button("先摆一小块，边做边改", "garden", 'data-choice="先试做"')}</div>${result ? `<div class="notice">你选择：${esc(result.choice)}。<br>小禾的模拟回应：${esc(result.reply)}</div><label class="field">这让我发现<textarea id="garden-note" maxlength="600">${esc(me().notes.garden || "")}</textarea></label>${button("保存协作小发现", "save-garden", "", "primary")}` : ""}<p class="muted" style="margin-top:20px">没有优劣与人格评分。这是一次本地回合式协作示例，不是实时多人游戏。</p>`,
+      '协作体验场 · 线上引导，线下共同决定，也可独自演示',
+      `<h3>两个人，一座共享花园</h3><p>目标不是比谁摆得漂亮，而是看看你们怎样协商有限的资源。</p><div class="actions">${button('和现场伙伴一起做','garden-mode','data-mode="offline"',mode==='offline'?'primary':'')}${button('独自体验模拟搭档','garden-mode','data-mode="demo"',mode==='demo'?'primary':'')}</div>${mode?`<div class="role-cards"><article><h3>园丁 · 负责植物</h3><p>有 3 簇花、2 株绿植。希望至少摆 2 簇花和 1 株绿植。</p></article><article><h3>邻居 · 负责通行</h3><p>中间一列从入口到出口要保持畅通。和园丁商量，怎样兼顾好看与好走。</p></article></div><p>${mode==='offline'?'请和身边一位伙伴分别读角色要求，面对面商量，再共用这台设备记录决定。没有线上匹配，也不会自动确认对方真的参与。':'小禾是预设回应的模拟搭档，不是真人在线。你可以选择一种开场方式，看看如何接住彼此的需要。'}</p>${mode==='demo'?`<div class="actions">${button("先商量布局，再一起摆", "garden", 'data-choice="先商量"')}${button("先摆一小块，边做边改", "garden", 'data-choice="先试做"')}</div>${result?`<div class="notice">小禾 · 模拟回应：${esc(result.reply)} 我需要中间一列留作通道，你想把植物放在哪边？</div>`:''}`:''}<p>点格子切换「留白 → 小花 → 绿植」。中间竖列是入口到出口的通道；布局同步显示在 3D 场景。</p><div class="garden-grid">${layout.map((v,i)=>button(['留白','小花','绿植'][v],'garden-cell',`data-index="${i}"`,`${v?'planted':''} ${[1,4,7].includes(i)?'path-cell':''}`)).join('')}</div><p class="garden-check">小花 ${checked.flowers}/3 · 绿植 ${checked.plants}/2 · 通道${checked.path?'畅通':'被占用'}。${checked.ok?'资源与通道符合约定，接下来请一起确认。':'需要 2–3 簇花、1–2 株绿植，并留出中间通道。'}</p>${mode==='offline'?'<label class="checkline"><input id="partner-confirm" type="checkbox">我们已在线下面对面讨论，并同意这个安排（本人确认）</label>':''}<div class="actions">${button('留下这次共同决定','garden-complete','','primary')}</div>${done?`<div class="notice">已留下${done.mode==='offline'?'现场共同决定（本人记录）':'模拟协作记录'}。${button('去成长林回顾这次配合','space','data-key="growth"')}</div>`:''}<label class="field">这让我发现<textarea id="garden-note" maxlength="600" placeholder="什么配合方式让我舒服？下次想怎么说？">${esc(me().notes.garden || "")}</textarea></label>${button("保存协作小发现", "save-garden")}`:'<div class="notice">先选体验方式。现场培训推荐真人面对面协商；一个人向客户演示时可选模拟搭档。</div>'}<p class="muted">任务约束只用于制造一次真实的商量，不给人打分，也不据此推断 DISC 类型。</p>`,
     );
-    if (result) {
-      const layout = state.publicResults[`${state.actor}:garden-layout`] || [
-        1, 0, 2, 1, 0, 2, 0, 0, 1,
-      ];
-      $(".panel-body").insertAdjacentHTML(
-        "afterbegin",
-        `<p class="muted">点格子切换「留白／小花／绿植」。留一条路，让搭档也能走进来。布局会同步摆到场景里。</p><div class="garden-grid">${layout.map((value, i) => button(["留白", "小花", "绿植"][value], "garden-cell", `data-index="${i}"`, value ? "planted" : "")).join("")}</div>`,
-      );
-    }
     return;
   }
   if (key === "class") {
@@ -596,7 +637,7 @@ function space(key) {
     panel(
       title,
       sub,
-      `<h3>一起做一张「百蚂村午休地图」</h3><p>小林的点子：标出适合拍照的角落。<br>小禾的补充：加一条适合慢慢走的路线。<small>以上为虚构搭档的示例贡献。</small></p><label class="field" style="margin-top:20px">我能贡献的一小块<textarea id="workshop-note" maxlength="600" placeholder="一个地点、一点经验，或一件愿意帮忙的事。">${esc(result?.contribution || "")}</textarea></label>${result ? `<div class="notice">成果卡已保存：${esc(result.contribution)}</div>` : ""}`,
+      `<h3>一起做一张「森林拍照地图」</h3><p>承接小林“找伙伴练习手机摄影”的心愿。不是另填一次个人资料，而是把一次观察变成大家可用的路线。</p>${photoMap(state,state.actor,esc,button)}<label class="field">选择一个地点<select id="workshop-location">${PHOTO_SPOTS.map(([id,title])=>`<option value="${id}" ${(me().notes['workshop-location']||result?.location)===id?'selected':''}>${esc(title)}</option>`).join('')}</select></label><label class="field">我愿意贡献的一个观察<textarea id="workshop-note" maxlength="600" placeholder="比如：下午窗边有侧光，试试把手边的杯子放在那里。">${esc(me().notes['workshop-draft'] ?? result?.contribution ?? "")}</textarea></label>${result ? `<div class="notice">你的署名和贡献已放上地图。可以修订，再制作成果卡带走。</div>` : ""}`,
       button("把贡献放进成果卡", "save-workshop", "", "primary") + (result ? button("制作共创成果卡", "share-open", 'data-kind="work"') : ''),
     );
     return;
@@ -628,6 +669,7 @@ function presenterPanel() {
     "wide",
   );
   const nextBatch=$('[data-action="cohort-next"]');
+  $('.panel-body').insertAdjacentHTML('afterbegin',`<section class="section"><h3>体验一次被邻居惦记</h3><p>完成介绍且开放串门后，离开面板探索 8 秒，会收到一次明确标注的示例来访。也可在这里触发；每位角色只生成一次，不重复扣款或送礼。</p>${button(state.gifts.some(g=>g.to===state.actor&&g.demoVisit)?'查看本角色的来访礼物':'模拟森友来访送礼','demo-visit','','primary')}</section>`);
   if(state.experience!=='opening' || state.openingStep>=5) {
     nextBatch.disabled=true;
     nextBatch.textContent=state.experience!=='opening'?'当前是已建村庄演示':'安家示例已展示完，未完成人可继续布置';
@@ -730,6 +772,9 @@ function qualityPanel() {
 }
 document.addEventListener("input", (e) => {
   const el = e.target;
+  if(el.id==='interview-answer') commit({type:'interview',group:el.dataset.group,key:el.dataset.question,value:el.value});
+  const draftKeys={'reflection':'reflection','reflection-context':'reflection-context','garden-note':'garden','workshop-note':'workshop-draft'};
+  if(draftKeys[el.id])commit({type:'note',key:draftKeys[el.id],value:el.value});
   if (el.dataset.profile)
     commit({ type: "profile", profile: { [el.dataset.profile]: el.value } });
   if (el.id === "resident-name") commit({ type: "profile", name: el.value });
@@ -742,6 +787,7 @@ document.addEventListener("input", (e) => {
 });
 document.addEventListener("change", (e) => {
   const el = e.target;
+  if(el.id==='workshop-location')commit({type:'note',key:'workshop-location',value:el.value});
   if (el.dataset.public)
     commit({ type: "profile", public: { [el.dataset.public]: el.checked } });
   if (el.id === "reviewed") commit({ type: "profile", reviewed: el.checked });
@@ -785,6 +831,57 @@ document.addEventListener("click", async (e) => {
   }
   try {
     switch (a) {
+      case 'growth-task':
+        if(commit({type:'note',key:'growth-task',value:'留意一个舒服的配合瞬间'})) {space('growth');toast('观察叶已领取。先去经历一次互动，再回来写。');}
+        break;
+      case 'map-spot':
+        $('#workshop-location').value=d.location;
+        commit({type:'note',key:'workshop-location',value:d.location});
+        $('#workshop-note').focus();
+        break;
+      case 'garden-mode':
+        if(commit({type:'publicResult',key:'garden-mode',value:d.mode})) {
+          commit({type:'publicResult',key:'garden-done',value:null});
+          if(!state.publicResults[`${state.actor}:garden-layout`])commit({type:'publicResult',key:'garden-layout',value:[0,0,0,0,0,0,0,0,0]});
+          space('play');
+        }
+        break;
+      case 'garden-complete': {
+        const layout=state.publicResults[`${state.actor}:garden-layout`]||[],mode=state.publicResults[`${state.actor}:garden-mode`];
+        if(layout.length!==9||!gardenCheck(layout).ok){toast('再商量一下：留出中间通道，摆 2–3 簇花和 1–2 株绿植。');break;}
+        if(mode==='offline'&&!$('#partner-confirm')?.checked){toast('请和现场伙伴确认安排，再勾选共同决定。');break;}
+        if(mode==='demo'&&!state.publicResults[`${state.actor}:garden`]){toast('先选择一种开场方式，听听模拟搭档的需要。');break;}
+        if(commit({type:'publicResult',key:'garden-done',value:{mode,layout,at:Date.now()}}))space('play');
+        break;
+      }
+      case 'interview-start': {
+        const next=QUESTIONS[d.group]?.findIndex(q=>q[4]&&!me().interview?.[d.group]?.[q[0]]?.trim());
+        interview(d.group,next>=0?next:0);break;
+      }
+      case 'interview-prev': interview(interviewGroup,interviewIndex-1);break;
+      case 'interview-choice': {
+        const q=QUESTIONS[interviewGroup][interviewIndex], value=q[3][Number(d.choice)];
+        if(commit({type:'interview',group:interviewGroup,key:q[0],value})) {$('#interview-answer').value=value;$('#interview-answer').focus();}
+        break;
+      }
+      case 'interview-skip':
+      case 'interview-next': {
+        const q=QUESTIONS[interviewGroup][interviewIndex];
+        if(a==='interview-next'&&q[4]&&!$('#interview-answer').value.trim()){toast('说一点自己的想法，也可以写暂时不想公开。');break;}
+        if(a==='interview-skip')commit({type:'interview',group:interviewGroup,key:q[0],value:''});
+        if(interviewIndex===QUESTIONS[interviewGroup].length-1)interviewPreview();else interview(interviewGroup,interviewIndex+1);
+        break;
+      }
+      case 'interview-apply': {
+        const values=Object.fromEntries([...document.querySelectorAll('[data-preview-profile]')].map(el=>[el.dataset.previewProfile,el.value.trim()]));
+        if(Object.values(values).some(v=>!v||v.length>600)){toast('每段请留下表达，最多 600 字，也可以写暂不公开。');break;}
+        const visibility=Object.fromEntries([...document.querySelectorAll('[data-preview-public]')].map(el=>[el.dataset.previewPublic,el.checked]));
+        if(commit({type:'profile',profile:values,public:visibility}) && commit({type:'finishStation',key:interviewGroup})) {close();toast('你确认的介绍已放进小屋。册子、物件与居民摘要读取同一份内容。');}
+        break;
+      }
+      case 'demo-visit':
+        if(presenter && commit({type:'demoVisit'})) {walkHome(state.actor);toast('示例森友的礼物已在信箱等你。走近信箱，亲手打开。');}
+        break;
       case "cohort-next":
         if(presenter && commit({type:'cohortNext'})) {close();hud();toast("示例同学开始下一轮安家。未接手的虚构角色随演示推进。");}
         break;
@@ -953,6 +1050,7 @@ document.addEventListener("click", async (e) => {
         space("library");
         break;
       case "save-reflection":
+        if(!$('#reflection').value.trim()){toast('先记下一点具体发现；还没经历互动，可以先领取观察叶。');break;}
         if (
           commit({
             type: "note",
@@ -1008,17 +1106,20 @@ document.addEventListener("click", async (e) => {
       case "garden-cell": {
         const layout = [
           ...(state.publicResults[`${state.actor}:garden-layout`] || [
-            1, 0, 2, 1, 0, 2, 0, 0, 1,
+            0, 0, 0, 0, 0, 0, 0, 0, 0,
           ]),
         ];
         layout[Number(d.index)] = (layout[Number(d.index)] + 1) % 3;
         if (
           commit({ type: "publicResult", key: "garden-layout", value: layout })
-        )
+        ) {
+          commit({type:'publicResult',key:'garden-done',value:null});
           space("play");
+        }
         break;
       }
       case "save-garden":
+        if(!$('#garden-note').value.trim()){toast('先写一点这次配合中的发现吧。');break;}
         commit({ type: "note", key: "garden", value: $("#garden-note").value });
         toast("协作小发现已私密保存。");
         break;
@@ -1035,7 +1136,7 @@ document.addEventListener("click", async (e) => {
         commit({
           type: "publicResult",
           key: "workshop",
-          value: { contribution },
+          value: { contribution, location: $('#workshop-location').value },
         });
         space("workshop");
         break;
@@ -1228,6 +1329,7 @@ async function init() {
           .get(k)
           .slice(0, k === "welcome" || k === "goal" ? 300 : 30);
     world = new ForestWorld($("#world"), (hit) => {
+      if(hit.type==='blockedPath')toast('这条路暂时走不过去。试着走近一点，或从家具旁绕过去再点。');
       if (hit.type === "mayor") mayor();
       if (hit.type === "resident") door(hit.id);
       if (hit.type === "plot") plotVisit(hit.plot);
@@ -1245,7 +1347,7 @@ async function init() {
     hud();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "typing-v1-20260928",
+      build: "neighbors-v1-20260928",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),

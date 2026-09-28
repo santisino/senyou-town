@@ -310,6 +310,19 @@ export class ForestWorld {
     this.home.getObjectByName('PhotoStand').visible=r.id===this.state.actor && r.confirmed;
     // Empty physical stations remain in the room: they are where expression begins.
     this.home.getObjectByName("GiftDecor").visible=this.state.gifts.some(g=>g.to===r.id && g.status==='pending');
+    const pending=this.state.gifts.filter(g=>g.to===r.id&&g.status==='pending').length;
+    if(!this.mailFlag) {
+      this.mailFlag=new T.Group();
+      const pole=new T.Mesh(new T.CylinderGeometry(.022,.022,.62,6),new T.MeshStandardMaterial({color:'#785c3d'}));
+      const flag=new T.Mesh(new T.BoxGeometry(.32,.21,.035),new T.MeshStandardMaterial({color:'#df8d50'}));
+      flag.position.set(.15,.2,0);this.mailFlag.add(pole,flag);this.mailFlag.position.set(3,1.7,2.9);this.home.add(this.mailFlag);
+    }
+    this.mailFlag.visible=!!pending;
+    const mail=this.pins.find(p=>p.key==='mail');
+    if(mail && this.mode==='home') {
+      const label=r.id===this.state.actor ? pending?`我的信箱 · ${pending} 份新礼物`:'我的礼物信箱' : '给他留礼物';
+      mail.label=label;if(mail.el.textContent!==label)mail.el.textContent=label;
+    }
     const completed=journey(r).stations;
     this.home.getObjectByName("Camera").visible = completed.includes('interest');
     this.home.getObjectByName("Book").visible = true;
@@ -362,7 +375,7 @@ export class ForestWorld {
     this.cancelRoute();
     this.route = findPath([this.pos.x,this.pos.z],point,(x,z)=>this.walkable(x,z),this.mode==="home");
     this.pending = pin;
-    if (!this.route.length) { this.pending=null; return; }
+    if (!this.route.length) { this.pending=null; if(pin)this.onSelect({type:'blockedPath'}); return; }
     const points=[this.pos.clone(), ...this.route.map(([x,z])=>new T.Vector3(x,.39,z))];
     this.routeLine=new T.Line(new T.BufferGeometry().setFromPoints(points),new T.LineBasicMaterial({color:0xffe4a8,transparent:true,opacity:.8}));
     this.scene.add(this.routeLine);
@@ -389,7 +402,7 @@ export class ForestWorld {
         ["table", "会客桌", [1.5, 1.3, -0.75], [2,-.25]],
         ["wish", "心愿瓶", [3, 1.6, -1.35], [2.25,-1.5]],
         ["book", "小屋里的我", [-0.1, 1.3, 0.3], [-1,.75]],
-        ["mail", "礼物信箱", [3, 1.6, 2.9], [2.25,2.75]],
+        ["mail", this.resident.id===this.state.actor ? this.state.gifts.some(g=>g.to===this.state.actor&&g.status==='pending')?'我的信箱 · 有新礼物':'我的礼物信箱' : '给他留礼物', [3, 1.6, 2.9], [2.25,2.75]],
       ])
         this.pin(label + (this.resident.id===this.state.actor && journey(this.resident).stations.includes(key) ? " ✓" : ""), pos, () => this.onSelect({ type: "object", key }), key, approach);
       if(this.resident.id===this.state.actor && this.resident.confirmed)

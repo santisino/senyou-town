@@ -42,7 +42,7 @@ export function photograph(world, data) {
     place.position.set(0, .25, 0); composition.add(place);
     const sheet=document.createElement('canvas');sheet.width=960;sheet.height=560;
     const pen=sheet.getContext('2d');pen.fillStyle=PAPER;pen.fillRect(0,0,960,560);
-    line(pen,'午休地图 · 共创提案',50,85,860,48,1,INK);
+    line(pen,'森林拍照地图 · 共创提案',50,85,860,48,1,INK);
     line(pen,owner.name+'的贡献',50,155,860,32,1,ACCENT);
     line(pen,data.work,50,230,860,40,4,INK);
     const texture=new T.CanvasTexture(sheet);texture.colorSpace=T.SRGBColorSpace;
@@ -125,7 +125,7 @@ export async function renderCard(world, data) {
     data.people.forEach(p => { line(ctx, p.name + ' · 相处小提示', 64, y, 930, 24, 1, MUTED); y += 39;
       y += line(ctx, p.fields.collaboration || '把具体的相处方式，留给下一次见面慢慢聊。', 64, y, 940, 27, data.common?1:2) + 15; });
   } else if (data.kind === 'work') {
-    line(ctx, '百蚂村午休地图 · 共创提案', 64, y, 930, 27, 1, MUTED); y += 48;
+    line(ctx, '森林拍照地图 · 共创提案', 64, y, 930, 27, 1, MUTED); y += 48;
     y += line(ctx, '我的贡献：' + data.work, 64, y, 940, 29, 3) + 24;
     line(ctx, '示例搭档：小林提议拍照点，小禾补充散步路线。', 64, y, 940, 22, 2, MUTED);
   } else {

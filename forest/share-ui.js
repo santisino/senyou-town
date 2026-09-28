@@ -1,5 +1,5 @@
-import { CARD_TYPES, LABELS, cardData, partners, makePairCard, respondCard, pairCardValid, canExportPair } from './share-data.js?v=postcards-v1';
-import { renderCard } from './share-render.js?v=postcards-v1';
+import { CARD_TYPES, LABELS, cardData, partners, makePairCard, respondCard, pairCardValid, canExportPair } from './share-data.js?v=neighbors-v1';
+import { renderCard } from './share-render.js?v=neighbors-v1';
 
 export function createSharing({ getState, getWorld, panel, button, esc, saveState, toast }) {
   let session = null, imageURL = null, generation = 0;

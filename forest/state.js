@@ -1,6 +1,7 @@
 import { seedResidents, blankResident, FIELDS, SHOP } from "./data.js?v=village-v4";
 import { journey, STATIONS } from "./journey.js?v=village-v4";
 import { claimPlot, advanceCohort, settleSample } from "./settlement.js";
+import { QUESTIONS } from "./interview.js?v=neighbors-v1";
 export const STORAGE = "senyou-forest-village-v2";
 const clone = (x) => structuredClone(x);
 const id = () =>
@@ -68,6 +69,7 @@ export function visible(s, rid, viewer = s.actor) {
       ]),
     ),
     notes: viewer === rid ? r.notes : {},
+    interview: viewer === rid ? (r.interview || {}) : {},
   };
 }
 export function canVisit(s, rid) {
@@ -109,6 +111,29 @@ export function transact(original, action) {
     if (rid === s.actor) fail("请选一位其他居民");
   };
   switch (a.type) {
+    case "interview": {
+      if (!QUESTIONS[a.group]?.some(q=>q[0]===a.key)) fail("没有这张情境卡");
+      me.interview ||= {};
+      me.interview[a.group] ||= {};
+      me.interview[a.group][a.key]=String(a.value || '').slice(0,90);
+      break;
+    }
+    case "demoVisit": {
+      if(!me.confirmed || s.stage!=="open" || !me.built) fail("先完成自己的说明书，并开放串门，再演示森友回访");
+      if(s.gifts.some(g=>g.to===s.actor&&g.demoVisit)) return s;
+      const sender=s.residents.find(r=>r.id!==s.actor && r.simulated && canVisit(s,r.id) &&
+        s.wallets[r.id]?.sent<5 && s.items.some(i=>i.owner===r.id&&i.status==='available'));
+      if(!sender) fail("暂时没有准备好且有礼物的示例森友，请先在演示手册准备已建村庄");
+      const item=s.items.find(i=>i.owner===sender.id&&i.status==='available');
+      const interest=me.public.interests && me.profile.interests?.trim();
+      const message=interest && !interest.includes('暂时')
+        ? `读到你写的「${interest.slice(0,40)}${interest.length>40?'…':''}」，想来打个招呼。给你留一份森林问候，有空也来我家坐坐。`
+        : '很高兴在森林里遇见你。给新邻居留一份小小的问候，有空也来我家坐坐。';
+      const next=transact({...s,actor:sender.id},{type:'sendGift',to:s.actor,item:item.id,message});
+      next.actor=s.actor;
+      next.gifts.at(-1).demoVisit=true;
+      return next;
+    }
     case "meetMayor":
       if(!me.name.trim() || me.name==="新森友")fail("先告诉村长怎么称呼你");
       claimPlot(s,me);me.arrived=true;

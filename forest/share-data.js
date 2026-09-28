@@ -1,3 +1,4 @@
+import { PHOTO_SPOTS } from './space-guides.js?v=neighbors-v1';
 // Export only an explicit, public-field whitelist. Never pass raw reports/notes to the compositor.
 export const CARD_TYPES = {
   house: { name: '小屋明信片', title: '在森林里，安了一个家。', fields: ['headline', 'traits'] },
@@ -29,7 +30,9 @@ export function cardData(s, kind, options = {}) {
     people.push(sharePerson(other, fields));
   }
   if (kind === 'wish') check(people[0].fields.wish && !people[0].fields.wish.includes('暂时没有'), '请先写下愿意公开的心愿，再制作邀请。');
-  const work = kind === 'work' ? s.publicResults[`${r.id}:workshop`]?.contribution : '';
+  const contribution=kind==='work' ? s.publicResults[`${r.id}:workshop`] : null;
+  const place=PHOTO_SPOTS.find(p=>p[0]===contribution?.location)?.[1];
+  const work = contribution?.contribution ? (place?place+'：':'')+contribution.contribution : '';
   if (kind === 'work') check(work?.trim(), '先在共创工坊提交一份贡献，再制作成果卡。');
   const accepted = s.requests.filter(q => q.to === r.id && q.status === 'accepted').length;
   const agreed = kind==='pair' ? s.requests.find(q=>q.status==='accepted' &&
