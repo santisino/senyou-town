@@ -1,4 +1,4 @@
-import { ForestWorld } from "./world.js?v=neighbors-v1";
+import { ForestWorld } from "./world.js?v=edge-pan-v1";
 import { QUESTIONS, draftProfile } from "./interview.js?v=neighbors-v1";
 import { GUIDES, PHOTO_SPOTS, photoMap, gardenCheck } from "./space-guides.js?v=neighbors-v1";
 import { createSharing } from "./share-ui.js?v=neighbors-v1";
@@ -165,7 +165,7 @@ function hud() {
   $("#movement-help").textContent =
     innerWidth < 700
       ? "拖动左侧摇杆走动 · 点击路面或物件"
-      : "WASD 走动 · 单击前往 · 左键拖动旋转 · 右键拖动平移 · 滚轮缩放";
+      : "WASD 走动 · 鼠标停在边缘移动视角 · 拖动旋转 · 右键平移 · 滚轮缩放";
   if(innerWidth<700) $("#movement-help").textContent="摇杆走路 · 单指拖动转视角 · 双指缩放/平移 · 轻点互动";
   $("#joystick").style.visibility =
     world?.mode === "overview" ? "hidden" : "visible";
@@ -1352,7 +1352,7 @@ async function init() {
     hud();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "neighbors-v2-20260928",
+      build: "edge-pan-v1-20260928",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),

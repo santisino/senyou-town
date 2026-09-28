@@ -3,7 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { SPACES } from "./data.js?v=village-v4";
 import { findPath, journey } from "./journey.js?v=village-v4";
-import { ForestCamera } from "./camera.js?v=village-v4";
+import { ForestCamera } from "./camera.js?v=edge-pan-v1";
 import { PLOTS, DISTRICTS, ENTRY, MAYOR, SPACE_POS, address, outdoorWalkable } from "./layout.js";
 import { houseStage } from "./settlement.js";
 export class ForestWorld {
@@ -518,6 +518,7 @@ export class ForestWorld {
     return outdoorWalkable(x,z);
   }
   setBlocked(b) {
+    this.cameraRig.clearEdge();
     this.blocked = b;
     this.cameraRig.controls.enabled=!b;
     if (b) {
@@ -628,7 +629,7 @@ export class ForestWorld {
                 ) * 0.35
               : 0;
       }
-      this.cameraRig.update();
+      this.cameraRig.update(dt);
       const pv=this.pos.clone().add(new T.Vector3(0,2.25,0)).project(this.camera);
       this.playerLabel.hidden=this.mode==='overview';
       const playerName='我 · '+(this.state?.residents.find(r=>r.id===this.state.actor)?.name || '新森友');

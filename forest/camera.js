@@ -9,6 +9,10 @@ export class ForestCamera {
     this.follow = true;
     this.lastPlayer = world.pos.clone();
     this.suppressClickUntil = 0;
+    this.edgePointer = null;
+    this.edgeMotion = false;
+    this.edgeStart = 0;
+    this.edgePausedUntil = 0;
     this.controls = new OrbitControls(world.camera, world.el);
     Object.assign(this.controls, {
       enableDamping: true, dampingFactor: 0.12, rotateSpeed: 0.65,
@@ -22,7 +26,16 @@ export class ForestCamera {
     world.el.addEventListener("pointerup", e => this.up(e), true);
     world.el.addEventListener("pointercancel", () => this.cancel(), true);
     window.addEventListener("blur", () => this.cancel());
-    world.el.addEventListener("wheel", () => { this.suppressClickUntil = performance.now() + 120; }, {passive:true});
+    window.addEventListener('pointermove', e => {
+      if(e.pointerType !== 'mouse' || e.buttons || this.pointers.size) {this.clearEdge();return;}
+      this.edgePointer={x:e.clientX,y:e.clientY};
+    },true);
+    document.documentElement.addEventListener('pointerleave',()=>this.clearEdge());
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)this.cancel();});
+    window.addEventListener('resize',()=>this.clearEdge());
+    window.addEventListener('pointerdown',()=>this.clearEdge(),true);
+    world.el.addEventListener('pointerleave',()=>this.clearEdge());
+    world.el.addEventListener("wheel", () => { this.suppressClickUntil = performance.now() + 120;this.clearEdge();this.edgePausedUntil=performance.now()+350; }, {passive:true});
   }
   down(e) {
     if (this.world.blocked) return;
@@ -56,8 +69,10 @@ export class ForestCamera {
       else this.world.pick(point);
     });
   }
-  cancel() { this.pointers.clear();this.suppressClickUntil=performance.now()+400; }
+  clearEdge() {this.edgePointer=null;this.edgeStart=0;this.edgeMotion=false;}
+  cancel() { this.pointers.clear();this.clearEdge();this.suppressClickUntil=performance.now()+400; }
   frame() {
+    this.clearEdge();
     const w=this.world, c=this.controls, home=w.mode==='home', overview=w.mode==='overview';
     // Flush gesture inertia before explicitly resetting a view; do not fight it every frame.
     c.enableDamping=false;c.update();c.enableDamping=true;
@@ -75,13 +90,38 @@ export class ForestCamera {
     this.lastPlayer.copy(w.pos);
   }
   zoom(factor) {
+    this.clearEdge();
     if(this.world.blocked)return;
     const c=this.controls, offset=this.world.camera.position.clone().sub(c.target);
     offset.setLength(T.MathUtils.clamp(offset.length()*factor,c.minDistance,c.maxDistance));
     this.world.camera.position.copy(c.target).add(offset);c.update();
   }
-  update() {
+  updateEdge(dt) {
+    const w=this.world,p=this.edgePointer,now=performance.now();
+    this.edgeMotion=false;
+    if(!p || w.blocked || !this.controls.enabled || document.hidden || this.pointers.size || now<this.edgePausedUntil) {this.edgeStart=0;return;}
+    // Only hovering the actual canvas scrolls. HUD, labels and form controls stay still.
+    if(document.elementFromPoint(p.x,p.y)!==w.renderer.domElement) {this.edgeStart=0;return;}
+    const r=w.el.getBoundingClientRect(),margin=Math.min(48,r.width*.08,r.height*.08);
+    if(p.x<r.left||p.x>=r.right||p.y<r.top||p.y>=r.bottom){this.clearEdge();return;}
+    const axis=(v,min,max)=>v<min+margin?-(1-(v-min)/margin):v>max-margin?1-(max-v)/margin:0;
+    let x=axis(p.x,r.left,r.right),y=axis(p.y,r.top,r.bottom);
+    if(!x&&!y){this.edgeStart=0;return;}
+    if(!this.edgeStart){this.edgeStart=now;return;}
+    if(now-this.edgeStart<180)return;
+    const strength=Math.min(1,Math.hypot(x,y));
+    const right=new T.Vector3().setFromMatrixColumn(w.camera.matrixWorld,0).setY(0).normalize();
+    const forward=new T.Vector3().crossVectors(new T.Vector3(0,1,0),right);
+    const speed=T.MathUtils.clamp(this.controls.getDistance()*.38,2,35)*strength*strength;
+    const delta=right.multiplyScalar(x).addScaledVector(forward,-y).normalize().multiplyScalar(speed*Math.min(dt,.05));
+    const target=this.controls.target.clone().add(delta).sub(this.controls.cursor).clampLength(0,this.controls.maxTargetRadius).add(this.controls.cursor);
+    delta.copy(target).sub(this.controls.target);
+    this.controls.target.copy(target);w.camera.position.add(delta);
+    this.follow=false;this.edgeMotion=delta.lengthSq()>1e-10;
+  }
+  update(dt=1/60) {
     const w=this.world;
+    this.updateEdge(dt);
     if(this.follow && w.mode==='town') {
       const delta=w.pos.clone().sub(this.lastPlayer);
       this.controls.target.add(delta);w.camera.position.add(delta);
@@ -89,10 +129,10 @@ export class ForestCamera {
     this.lastPlayer.copy(w.pos);
     this.controls.update();
     const status=document.querySelector('#camera-status');
-    if(status)status.textContent=this.controls.getDistance()>110?'远眺 · 拉近查看地点':this.follow&&w.mode==='town'?'镜头跟随人物':'自由观察';
+    if(status)status.textContent=this.edgeMotion?'边缘移动中 · 移开鼠标即停':this.controls.getDistance()>110?'远眺 · 拉近查看地点':this.follow&&w.mode==='town'?'镜头跟随人物':'自由观察';
   }
   snapshot() {
     const c=this.controls;
-    return {position:this.world.camera.position.toArray(),target:c.target.toArray(),distance:c.getDistance(),azimuth:c.getAzimuthalAngle(),polar:c.getPolarAngle(),follow:this.follow,min:c.minDistance,max:c.maxDistance};
+    return {position:this.world.camera.position.toArray(),target:c.target.toArray(),distance:c.getDistance(),azimuth:c.getAzimuthalAngle(),polar:c.getPolarAngle(),follow:this.follow,min:c.minDistance,max:c.maxDistance,edgeMoving:this.edgeMotion};
   }
 }
