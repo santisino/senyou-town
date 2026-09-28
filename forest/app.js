@@ -143,7 +143,7 @@ function hud() {
   $("#house-tools").innerHTML = "";
   let title, copy;
   const j=journey(r), next=nextStation(r);
-  title=!j.key ? "先逛逛，找到村长" : !r.built ? "到我的宅地，打开工具箱" : !r.confirmed ? isHome ? next ? STATIONS[next].title : "翻开册子，确认小屋里的我" : "进小屋，留下自己的故事" : state.stage!=="open" ? "小屋准备好了，等村长开放串门" : "带着好奇，去认识一位森友";
+  title=!j.key ? "先逛逛，找到村长" : !r.built ? "到我的宅地，打开工具箱" : !r.confirmed ? isHome ? next ? STATIONS[next].title : "翻开册子，确认小屋里的我" : "进小屋，留下自己的故事" : state.stage!=="open" ? "安家完成，等村长开放串门" : "带着好奇，去认识一位森友";
   copy=!j.key ? "公共空间已经就绪，溪对岸的居民区等我们一起建设。村长在村口等你。" : !r.built ? `钥匙对应 ${address(r)}。过桥后，走到你的宅地开始安家。` : !r.confirmed ? isHome ? "走到物件旁留下故事，再回到房间继续布置。" : "可以自己走，也可以点小屋沿路过去。" : isHome ? "走近物件，读读这个人的故事。" : state.stage!=="open" ? "可以去小铺挑装饰、在信箱制作礼物，或沿路看村庄长出来。" : "公园公告栏有居民名册。先发现，再沿小路去拜访。";
   $("#mission").innerHTML=`<div class="step">${esc(state.stage==="open"?"串门时间":"初到森林")}</div><h2>${esc(title)}</h2><p>${esc(copy)}</p>`;
   $("#navigation").innerHTML=(isHome?button("走到门口出门","exit-home"):button(world?.mode==="overview"?"回到脚下":"俯瞰森林","map"))+button("","interact",'id="near-action" hidden',"primary");
@@ -159,6 +159,7 @@ function hud() {
     world?.mode === "overview" ? "hidden" : "visible";
   const counts=villageCounts(state);
   $("#village-progress").textContent=isHome ? address(resident(state,homeId)) : `50 个宅地 · ${counts.arrived} 位到达 · ${counts.ready} 间准备好`;
+  $("#village-progress").style.top=($("#mission").offsetTop+$("#mission").offsetHeight+8)+'px';
   $(".demo-label").textContent=state.experience==='opening'?"共同建村 · 同学进度为本机模拟 · 不跨设备同步":"已建村庄演示 · 虚构居民 · 本地保存";
 }
 function welcome() {
