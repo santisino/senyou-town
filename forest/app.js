@@ -780,7 +780,7 @@ document.addEventListener("click", async (e) => {
         if(presenter && commit({type:'cohortNext'})) {close();hud();toast("示例同学开始下一轮安家。未接手的虚构角色随演示推进。");}
         break;
       case "cohort-50":
-        if(presenter && commit({type:'cohort50'})) {close();world.overview();hud();toast("已准备 50 人的本机模拟；还没到达的人不会拥有小屋。可在演示手册推进安家。");}
+        if(presenter && commit({type:'cohort50'})) {close();world.overview();hud();toast("已装入 50 人班级样例，居民按各自进度安家。这是本机模拟，不会联动其他设备。");}
         break;
       case "mature-demo":
         if(presenter) {story(2);close();world.overview();hud();}
