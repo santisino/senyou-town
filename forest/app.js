@@ -105,6 +105,7 @@ function saveState(next) {
   }
 }
 function panel(title, subtitle, body, foot = "", classes = "") {
+  $('#panel-root').dataset.space='';
   returnFocus = document.activeElement;
   world?.setBlocked(true);
   document.body.classList.add("panel-open");
@@ -548,12 +549,14 @@ function spaces() {
   );
 }
 function space(key) {
+  const scroll=$('#panel-root').dataset.space===key ? $('.panel-body')?.scrollTop || 0 : 0;
   renderSpace(key);
   const guide=GUIDES[key];
   if(guide && me().confirmed && state.stage==='open' && $('.panel-body')) {
     $('.panel-body').insertAdjacentHTML('afterbegin',`<div class="space-guide"><span class="eyebrow">这里可以做什么</span><h3>${esc(guide[0])}</h3><ol>${guide[1].map(t=>`<li>${esc(t)}</li>`).join('')}</ol></div>`);
     $('.panel-body').insertAdjacentHTML('beforeend',`<details class="demo-scope"><summary>给演示者：本次体验范围与未来可能</summary><p>${esc(guide[2])}</p></details>`);
   }
+  if($('.panel-body')) {$('#panel-root').dataset.space=key;$('.panel-body').scrollTo({top:scroll,behavior:'instant'});}
 }
 function renderSpace(key) {
   if(key==="shop" && !journey(me()).key) { toast("先认识村长，领到钥匙再来挑选。 ");return; }
@@ -1139,6 +1142,8 @@ document.addEventListener("click", async (e) => {
           value: { contribution, location: $('#workshop-location').value },
         });
         space("workshop");
+        $('.panel-body').scrollTop=0;
+        toast('贡献已放上地图，带着你的署名。可以制作成果卡分享。');
         break;
       }
       case "toggle-stage":
@@ -1347,7 +1352,7 @@ async function init() {
     hud();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "neighbors-v1-20260928",
+      build: "neighbors-v2-20260928",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),
