@@ -1,5 +1,5 @@
-import { ForestWorld } from "./world.js?v=camera-v3";
-import { FIELDS, SPACES, SHOP, NOTE } from "./data.js";
+import { ForestWorld } from "./world.js?v=village-v4";
+import { FIELDS, SPACES, SHOP, NOTE } from "./data.js?v=village-v4";
 import {
   fresh,
   load,
@@ -10,10 +10,12 @@ import {
   matches,
   transact,
   ready,
-} from "./state.js?v=walk-v2";
+} from "./state.js?v=village-v4";
 import qrcode from "../vendor/qrcode.mjs";
 import { encodeVillage, decodeVillage } from "./config.js";
-import { journey, nextStation, STATIONS } from "./journey.js";
+import { journey, nextStation, STATIONS } from "./journey.js?v=village-v4";
+import { PLOTS, SPACE_POS, address } from "./layout.js";
+import { houseStage, villageCounts } from "./settlement.js";
 const $ = (s) => document.querySelector(s),
   esc = (s) =>
     String(s ?? "").replace(
@@ -47,7 +49,7 @@ const me = () => resident(state),
 const button = (text, action, data = "", cls = "") =>
   `<button class="${cls}" data-action="${action}" ${data}>${esc(text)}</button>`;
 const person = (r) =>
-  `<div class="person-heading"><span class="portrait" style="background:${/^#[\da-f]{6}$/i.test(r.appearance.outfit) ? r.appearance.outfit : "#829475"}">${esc(r.name.slice(0, 1))}</span><div><h3>${esc(r.name)}</h3><small>${esc(r.group)} · 森林居民</small></div></div>`;
+  `<div class="person-heading"><span class="portrait" style="background:${/^#[\da-f]{6}$/i.test(r.appearance.outfit) ? r.appearance.outfit : "#829475"}">${esc(r.name.slice(0, 1))}</span><div><h3>${esc(r.name)}</h3><small>${esc(r.group)} · ${esc(address(r))}</small></div></div>`;
 const tags = (text) =>
   `<div class="tags">${text
     .split(/[、，,]/)
@@ -141,8 +143,8 @@ function hud() {
   $("#house-tools").innerHTML = "";
   let title, copy;
   const j=journey(r), next=nextStation(r);
-  title=!j.key ? "先逛逛，找到村长" : !r.confirmed ? isHome ? next ? STATIONS[next].title : "翻开册子，确认小屋里的我" : "钥匙收好了，走到我的小屋" : state.stage!=="open" ? "小屋准备好了，等村长开放串门" : "带着好奇，去认识一位森友";
-  copy=!j.key ? "村长在广场等你。走近他，再开始交谈。" : !r.confirmed ? isHome ? "走到物件旁留下故事，再回到房间继续布置。" : "可以自己走，也可以点小屋沿路过去。" : isHome ? "走近物件，读读这个人的故事。" : "公园公告栏有居民名册。先发现，再沿小路去拜访。";
+  title=!j.key ? "先逛逛，找到村长" : !r.built ? "到我的宅地，打开工具箱" : !r.confirmed ? isHome ? next ? STATIONS[next].title : "翻开册子，确认小屋里的我" : "进小屋，留下自己的故事" : state.stage!=="open" ? "小屋准备好了，等村长开放串门" : "带着好奇，去认识一位森友";
+  copy=!j.key ? "公共空间已经就绪，溪对岸的居民区等我们一起建设。村长在村口等你。" : !r.built ? `钥匙对应 ${address(r)}。过桥后，走到你的宅地开始安家。` : !r.confirmed ? isHome ? "走到物件旁留下故事，再回到房间继续布置。" : "可以自己走，也可以点小屋沿路过去。" : isHome ? "走近物件，读读这个人的故事。" : state.stage!=="open" ? "可以去小铺挑装饰、在信箱制作礼物，或沿路看村庄长出来。" : "公园公告栏有居民名册。先发现，再沿小路去拜访。";
   $("#mission").innerHTML=`<div class="step">${esc(state.stage==="open"?"串门时间":"初到森林")}</div><h2>${esc(title)}</h2><p>${esc(copy)}</p>`;
   $("#navigation").innerHTML=(isHome?button("走到门口出门","exit-home"):button(world?.mode==="overview"?"回到脚下":"俯瞰森林","map"))+button("","interact",'id="near-action" hidden',"primary");
   $("#scene-caption").textContent = isHome
@@ -155,14 +157,17 @@ function hud() {
   if(innerWidth<700) $("#movement-help").textContent="摇杆走路 · 单指拖动转视角 · 双指缩放/平移 · 轻点互动";
   $("#joystick").style.visibility =
     world?.mode === "overview" ? "hidden" : "visible";
+  const counts=villageCounts(state);
+  $("#village-progress").textContent=isHome ? address(resident(state,homeId)) : `50 个宅地 · ${counts.arrived} 位到达 · ${counts.ready} 间准备好`;
+  $(".demo-label").textContent=state.experience==='opening'?"共同建村 · 同学进度为本机模拟 · 不跨设备同步":"已建村庄演示 · 虚构居民 · 本地保存";
 }
 function welcome() {
   close(); homeId=null; world.town(); hud();
 }
 function mayor() {
   if(!journey(me()).key) {
-    const lines=[`欢迎来到${esc(state.village.name)}。我是${esc(state.village.mayor)}，这里的村长。你希望大家怎么称呼你？`, `${esc(me().name)}，很高兴认识你。${esc(state.village.goal)} 这里每间小屋，都住着一个有自己故事的人。`, "这把钥匙交给你。先把自己喜欢的事、相处的方式和最近的心愿，放进小屋里的物件。等大家准备好，我们再去串门。"];
-    panel(state.village.mayor+" · 村长","广场上的初次见面",`<p class="quote">${lines[mayorTurn]}</p>${mayorTurn===0?`<label class="field">大家可以叫我<input id="resident-name" maxlength="24" value="${esc(me().name==="新森友"?"":me().name)}" placeholder="你的名字或昵称"></label>`:""}`,button(["你好，我是……","我的小屋能做什么？","收好钥匙，去看看"][mayorTurn],"mayor-next","","primary"),"npc-dialog");
+    const lines=[`欢迎来到${esc(state.village.name)}。我是${esc(state.village.mayor)}。你看，溪对岸还是一片等待入住的宅地。你希望大家怎么称呼你？`, `${esc(me().name)}，很高兴认识你。${esc(state.village.goal)} 溪这边有公园、图书馆和教室，过桥就是大家未来的家。`, "这把钥匙交给你。去宅地打开工具箱，搭好基础小屋。再把喜欢的事、相处的方式和最近的心愿放进屋里。确认好自己的介绍，挂上欢迎牌，等我宣布串门时间。"];
+    panel(state.village.mayor+" · 村长","村口的初次见面",`<p class="quote">${lines[mayorTurn]}</p>${mayorTurn===0?`<label class="field">大家可以叫我<input id="resident-name" maxlength="24" value="${esc(me().name==="新森友"?"":me().name)}" placeholder="你的名字或昵称"></label>`:""}`,button(["你好，我是……","我们怎样一起建村？","领取宅地钥匙"][mayorTurn],"mayor-next","","primary"),"npc-dialog");
     return;
   }
   panel(
@@ -170,13 +175,26 @@ function mayor() {
     `${state.village.name} · ${state.stage === "open" ? "串门时间" : "入驻时间"}`,
     `<p class="quote">${esc(state.village.welcome)}</p><p>${esc(state.village.goal)}</p><div class="notice">${state.stage === "open" ? "大家可以去串门啦。收到礼物、看见心愿，都只是认识的开始；是否进一步连接，由你们自己决定。" : "现在先准备自己的小屋，还不能去别人家。线下主持人宣布开放后，会由演示者控制台切换阶段。"}</div>`,
     button(
-      me().confirmed ? "回我的小屋" : "继续入驻",
+      !me().built ? "去我的宅地" : me().confirmed ? "回我的小屋" : "继续入驻",
       "own",
       "",
       "primary",
     ) + (me().confirmed && state.stage==="open" ? button("去公园公告栏看看","space",'data-key="park"') : button("再逛逛","close")),
     "npc-dialog",
   );
+}
+function plotVisit(plotId) {
+  const r=state.residents.find(r=>r.plot===plotId),p=PLOTS[plotId];
+  if(!r) {toast(`这里是${p.district}的待入住宅地。${journey(me()).key?'你的钥匙对应 '+address(me())+'。':'先找村长报到，再领取自己的位置。'}`);return;}
+  if(r.id!==state.actor) {
+    if(!canVisit(state,r.id)) {toast(!r.confirmed?`${r.name}还在安家，主人确认后才能来坐坐。`:"邻居已经准备好，等村长宣布开放后再来拜访。");return;}
+    door(r.id);return;
+  }
+  if(!r.built) {
+    panel("打开我的安家工具箱",address(r),"<p class=\"quote\">这里还没有你的房子。但从今天起，可以慢慢有你的样子。</p><p>木料和工具已经备好。先搭起基础小屋，再用你的故事布置门牌、兴趣角、会客桌和心愿瓶。基础建设免费，不消耗森友币。</p>",button("搭起我的基础小屋","build-home","","primary"));
+    return;
+  }
+  visit(r.id);
 }
 function field(k) {
   const [, title, hint] = FIELDS.find((f) => f[0] === k),
@@ -205,10 +223,10 @@ function inspectBook() {
   panel("把这份介绍，留在我的小屋","桌上的册子 · 最后由我确认",summary(me(),true)+`<label class="checkline"><input id="reviewed" type="checkbox" ${me().reviewed?"checked":""}>我已阅读并确认，这些话代表我当前愿意表达的自己。</label>`,button("合上再看看","close")+button("确认，完成入驻","confirm","","primary"),"wide book");
 }
 function walkHome(id) {
-  if(!canVisit(state,id)) { toast(journey(me()).key?"先完成自己的说明书，等待村长开放串门。":"先去广场找村长，领取小屋钥匙。");return; }
+  if(!(id===state.actor && journey(me()).key) && !canVisit(state,id)) { toast(journey(me()).key?"先完成自己的说明书，等待村长开放串门。":"先去村口找村长，领取宅地钥匙。");return; }
   close();
   if(world.mode==="home") { exitThen(()=>walkHome(id));return; }
-  world.goHome(id,()=>visit(id));
+  world.goHome(id,()=>id===state.actor ? plotVisit(resident(state,id).plot) : visit(id));
   homeId=null;hud();
 }
 function walkObject(key) { close(); world.approach(key); hud(); }
@@ -484,7 +502,8 @@ function spaces() {
 function space(key) {
   if(key==="shop" && !journey(me()).key) { toast("先认识村长，领到钥匙再来挑选。 ");return; }
   if (key !== "shop" && (!me().confirmed || state.stage !== "open")) {
-    toast("请先入驻，并等待村庄开放。");
+    const place=SPACES.find(p=>p[0]===key);
+    panel(place[1],"公共设施已经就绪，居民的故事还在路上。",`<p class="quote">${esc(place[2])}</p><p>大家正在溪对岸安家。串门开放后，这里会接住居民的分享与心愿；现在可以沿路熟悉森林。</p>`,button("继续逛逛","close","","primary"));
     return;
   }
   const spec = SPACES.find((p) => p[0] === key);
@@ -588,17 +607,22 @@ function presenterPanel() {
     "村长的演示手册",
     "仅控制本机示例，不会改变其他设备的状态。",
     `<div class="notice">当前角色：${esc(me().name)} · ${state.stage === "open" ? "串门已开放" : "正在准备小屋"}。切换角色即模拟对方看到的画面。</div><div class="toolbar"><select id="actor-select">${state.residents
-      .slice(0, 6)
+      .filter(r=>!r.id.startsWith('stress-'))
       .map(
         (r) =>
           `<option value="${r.id}" ${r.id === state.actor ? "selected" : ""}>${esc(r.name)}</option>`,
       )
       .join(
         "",
-      )}</select>${button("切换到这个角色", "switch-role", "", "primary")}${button(state.stage === "open" ? "关闭串门" : "开放串门", "toggle-stage")}</div><div class="actions">${button("设置村长与村庄", "village")}${button("培训扫码入驻", "qr")}${button("恢复初始演示", "reset", "", "danger")}</div><section class="section"><h3>一条完整经历</h3><p class="muted">章节跳转会准备对应的虚构角色状态；不改写「我的小屋」个人资料。</p><div class="story-list">${["回到森林入口，自由探索", "小林的小屋与完整说明书", "村庄开放，小禾发现摄影心愿", "走进小林家，逐层认识他", "小禾提交同行申请", "切换小林，回应申请", "留份礼物，建立一次连接", "活动之后，在成长林回顾"].map((t, i) => button(t, "story", `data-index="${i}"`)).join("")}</div></section><small>DISC、合拍建议和其他居民均为示例。联系人交换、真实报告、跨设备同步由正式产品实现。</small>`,
+      )}</select>${button("切换到这个角色", "switch-role", "", "primary")}${button(state.stage === "open" ? "关闭串门" : "开放串门", "toggle-stage")}</div><section class="section"><h3>从共同建村开始</h3><p>首次入驻从空宅地开始。模拟同学随你的报到、建设和表达逐步安家，不是真实在线用户。提前完成的人可以继续布置；开放不会替未完成的人确认介绍。</p><div class="actions">${button("模拟下一批同学安家", "cohort-next")}${button("演示 50 人班级容量", "cohort-50")}${button("从空宅地重新体验", "reset")}</div><p>当前模拟进度 ${state.openingStep}/5 · 实际到达 ${villageCounts(state).arrived} 位 · 已准备好 ${villageCounts(state).ready} 间。</p></section><section class="section"><h3>直接看已建好的村庄</h3><p>为讲解准备完整的虚构居民，直接体验串门。不会填写或确认你的个人资料。</p>${button("进入已建村庄演示","mature-demo","","primary")}</section><div class="actions">${button("设置村长与村庄", "village")}${button("培训扫码入驻", "qr")}</div><section class="section"><h3>已建村庄的故事章节</h3><p class="muted">以下是演示者快捷方式，会准备虚构角色；不是普通玩家的开场。</p><div class="story-list">${["从村口观察已建村庄", "小林的小屋与完整说明书", "村庄开放，小禾发现摄影心愿", "走进小林家，逐层认识他", "小禾提交同行申请", "切换小林，回应申请", "留份礼物，建立一次连接", "活动之后，在成长林回顾"].map((t, i) => button(t, "story", `data-index="${i}"`)).join("")}</div></section><small>DISC、合拍建议和其他居民均为示例。联系人交换、真实报告、跨设备同步由正式产品实现。</small>`,
     "",
     "wide",
   );
+  const nextBatch=$('[data-action="cohort-next"]');
+  if(state.experience!=='opening' || state.openingStep>=5) {
+    nextBatch.disabled=true;
+    nextBatch.textContent=state.experience!=='opening'?'当前是已建村庄演示':'安家示例已展示完，未完成人可继续布置';
+  }
 }
 function village() {
   panel(
@@ -635,6 +659,7 @@ async function qr() {
 }
 function story(i) {
   presenter = true;
+  if(!commit({type:'prepareDemo'}))return;
   let next = structuredClone(state);
   next.actor = (i >= 2 && i <= 4) || i === 6 ? "he" : "lin";
   next.stage = i >= 2 ? "open" : "preparing";
@@ -649,7 +674,7 @@ function story(i) {
     book();
   }
   if (i === 2) {
-    homeId=null;world.town([-6,2.5]);
+    homeId=null;world.town([SPACE_POS.park[0],SPACE_POS.park[1]+2.5]);
     space("park");
   }
   if (i === 3) {
@@ -681,7 +706,7 @@ function story(i) {
     gift();
   }
   if (i === 7) {
-    homeId=null;world.town([15,-4.5]);
+    homeId=null;world.town([SPACE_POS.growth[0],SPACE_POS.growth[1]+2.5]);
     space("growth");
   }
   hud();
@@ -690,7 +715,7 @@ function qualityPanel() {
   panel(
     "运行检查",
     "只用于本地演示验收，不代表真实并发能力。",
-    `<p>当前居民数：${state.residents.length}。普通地图展示六个代表性小屋，其余居民通过列表访问。</p><div class="actions">${button("装入 100 位虚构居民", "stress-load")}${button("恢复六位示例居民", "stress-clear")}</div><section class="section"><h3>渲染采样</h3><p id="performance-result">${world.benchmarkResult ? esc(world.benchmarkResult) : "点击后会关闭面板，连续采样 60 秒。保持页面在前台，可以正常走动。"}</p>${button("开始 60 秒采样", "benchmark", "", "primary")}</section>`,
+    `<p>五条居民街巷共 50 个独立宅地，公共设施位于溪流另一侧。当前到达 ${villageCounts(state).arrived} 位，已领宅地 ${villageCounts(state).claimed} 块，已准备好 ${villageCounts(state).ready} 间。人数与状态仅在本机模拟，不代表实时并发。</p><div class="actions">${button("演示 50 人班级容量", "cohort-50")}</div><section class="section"><h3>渲染采样</h3><p id="performance-result">${world.benchmarkResult ? esc(world.benchmarkResult) : "点击后会关闭面板，连续采样 60 秒。保持页面在前台，可以正常走动。"}</p>${button("开始 60 秒采样", "benchmark", "", "primary")}</section>`,
     button("回演示手册", "presenter"),
   );
 }
@@ -750,6 +775,18 @@ document.addEventListener("click", async (e) => {
   }
   try {
     switch (a) {
+      case "cohort-next":
+        if(presenter && commit({type:'cohortNext'})) {close();hud();toast("示例同学开始下一轮安家。未接手的虚构角色随演示推进。");}
+        break;
+      case "cohort-50":
+        if(presenter && commit({type:'cohort50'})) {close();world.overview();hud();toast("已准备 50 人的本机模拟；还没到达的人不会拥有小屋。可在演示手册推进安家。");}
+        break;
+      case "mature-demo":
+        if(presenter) {story(2);close();world.overview();hud();}
+        break;
+      case "build-home":
+        if(world.mode==='town' && Math.hypot(world.pos.x-PLOTS[me().plot]?.x,world.pos.z-(PLOTS[me().plot]?.z+3.5))<.8 && commit({type:'buildHome'})) {close();hud();toast("基础小屋搭起来了。走到门前，再进去布置自己的故事。");}
+        break;
       case "camera-in": world.cameraRig.zoom(.8);break;
       case "camera-out": world.cameraRig.zoom(1.25);break;
       case "camera-reset": world.cameraRig.frame();break;
@@ -757,7 +794,7 @@ document.addEventListener("click", async (e) => {
       case "mayor-next":
         if(!me().name.trim() || me().name==="新森友") { toast("先告诉村长怎么称呼你吧。");break; }
         if(mayorTurn<2) { mayorTurn++;mayor(); }
-        else if(commit({type:"meetMayor"})) { close();hud();toast("钥匙收好了。沿路去找标着「我的小屋」的木屋吧。"); }
+        else if(commit({type:"meetMayor"})) { close();hud();toast(`领到了 ${address(me())} 的钥匙。过桥后，走到「我的宅地」打开工具箱。`); }
         break;
       case "finish-station":
         if(commit({type:"finishStation",key:d.key})) { close();world.updateProps(me());world.refreshPins();toast(STATIONS[d.key].result+"。回到房间，继续认识自己。");hud(); }
@@ -782,7 +819,7 @@ document.addEventListener("click", async (e) => {
       case "confirm":
         if (commit({ type: "confirm" })) {
           close();hud();
-          toast("小屋准备好了，你的说明书已经安放在桌上。");
+          toast("欢迎牌挂好了，小屋亮灯了。你的介绍已确认，开放串门后再迎接邻居。");
         }
         break;
       case "own":
@@ -1100,6 +1137,7 @@ document.addEventListener("click", async (e) => {
         break;
       case "reset-confirm":
         if (presenter && saveState(fresh())) {
+          mayorTurn=0;presenter=false;
           homeId = null;
           world.town();
           close();
@@ -1182,6 +1220,7 @@ async function init() {
     world = new ForestWorld($("#world"), (hit) => {
       if (hit.type === "mayor") mayor();
       if (hit.type === "resident") door(hit.id);
+      if (hit.type === "plot") plotVisit(hit.plot);
       if (hit.type === "object") object(hit.key);
       if (hit.type === "space") space(hit.key);
       if (hit.type === "exit") {
@@ -1195,7 +1234,8 @@ async function init() {
     hud();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "camera-v3-20260928",
+      build: "village-v4-20260928",
+      settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),
       position: () => world.pos.toArray(),

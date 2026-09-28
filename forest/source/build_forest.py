@@ -16,23 +16,67 @@ for node in module.body:
   exec(compile(snippet,'legacy-geometry','exec'))
 for n,c in [('wood','D7AF78'),('lightwood','EACDA2'),('beam','AF8156'),('cream','F3E4C9'),('roof','829475'),('terracotta','C78160'),('rooflight','A2B292'),('bark','9E7650'),('grass','93AD79'),('moss','729357'),('leaf','57814C'),('leaflight','9DBF73'),('leafdark','416B45'),('stone','E2D3B7'),('earth','B19B70'),('water','83BEB6'),('ink','355447'),('paper','F9EED7'),('gold','DDB565'),('flower','F0C984'),('pink','DC9B99'),('linen','E5D8B7'),('archive','C59868'),('skin','DDB794'),('hair','634F42'),('outfit','738D7A')]:mat(n,c)
 mat('glow','FFE7B7',.6,.5);mat('energy','C4E59E',.4,.3)
-group('Terrain');ball((0,0,-1.1),(25,22,1.4),'earth',64,8);ball((0,0,-.42),(24.8,21.8,.68),'grass',64,8)
-for x,y in [(-9,6),(0,10),(9,6),(-11,-5),(0,-10),(11,-5)]:path((x,y,0),(0,0,0),1.4)
-homes=[(-9,6),(0,10),(9,6),(-11,-5),(0,-10),(11,-5)]
-for i,(x,y) in enumerate(homes):cabin(i,x,y,0)
+group('Terrain');ball((0,0,-1.3),(59,50,1.3),'earth',96,8);ball((0,0,-.42),(58.8,49.8,.68),'grass',96,8)
+# Fifty real addresses, grouped into five streets west of a creek. Templates
+# are instantiated by the web lifecycle; there are no prebuilt resident homes.
+homes=[(-8-(i%5)*8,-(28-(i//5)*7)) for i in range(50)]
+group('ResidentialPaths')
+for row in range(10):path((-43,-(31.5-row*7),0),(-3,-(31.5-row*7),0),1.5)
+path((-3,-33,0),(-3,38,0),1.7)
+for x in [-44,-28,-12]:path((x,-34,0),(x,38,0),1.2)
+group('Creek')
+box((2,0,.22),(3.8,88,.08),'water')
+for y in range(-43,44,2):
+ for x in [-.15,4.15]:ball((x,y,.3),(.4,.7,.2),'stone',10,4)
+group('Bridges')
+for z in [32,11,-17]:
+ for i in range(20):box((-1.7+i*.4,-z,.35),(.38,3.15,.12),'lightwood')
+ for yy in [-z-1.6,-z+1.6]:
+  for x in [-1.7,.7,3.1,5.9]:beam((x,yy,.25),(x,yy,1.15),.07,'wood')
+  beam((-1.7,yy,1.15),(5.9,yy,1.15),.06,'wood')
+ path((-3,-z,0),(-1.7,-z,0),1.8);path((6,-z,0),(20,-z,0),1.8)
+# Source meshes for distinct lifecycle states, all authored in Blender.
+cabin(0,0,0,0)
+group('PlotGround');box((0,0,.27),(5.7,5.7,.04),'moss')
+for x in [-2.6,2.6]:
+ for y in [-2.6,2.6]:beam((x,y,.2),(x,y,.85),.065,'wood')
+for x in [-2.6,2.6]:beam((x,-2.6,.65),(x,2.6,.65),.025,'linen')
+beam((-2.6,2.6,.65),(2.6,2.6,.65),.025,'linen')
+group('Construction')
+for j in range(5):box((1.2,-.5,.35+j*.12),(1.7,.65,.1),'lightwood')
+box((-1,0,.52),(.85,.65,.48),'terracotta');box((-1,0,.8),(.95,.72,.08),'wood')
+beam((-1.7,-1.8,.3),(-1.7,-1.8,1.9),.04,'wood');box((-1.4,-1.8,1.7),(.6,.03,.32),'linen')
+group('HouseFrame')
+for j in range(22):box((0,-.3+(j-11)*.19,.7),(4.4,.178,.14),'lightwood')
+for x in [-1.7,1.7]:
+ for y in [-1.2,1.6]:beam((x,y,.3),(x,y,3),.1,'wood')
+ beam((x,-1.2,3),(x,1.6,3),.09,'wood')
+for y in [-1.2,1.6]:
+ beam((-1.7,y,3),(0,y,4.2),.1,'wood');beam((0,y,4.2),(1.7,y,3),.1,'wood')
+beam((0,-1.2,4.2),(0,1.6,4.2),.1,'wood')
+for j in range(4):box((-.7,-2.6-j*.3,.62-j*.16),(1.12,.34,.18),'wood')
+group('WelcomeGarden');plant(-2,-2.1,.3,.32);plant(2,-2.1,.3,.32)
+beam((0,-2.5,.3),(0,-2.5,1.2),.055,'wood');box((0,-2.5,1.3),(1.25,.09,.36),'paper')
 group('Plants')
-for i in range(42):
- a=i*2.399;r=random.uniform(19,23);tree(math.cos(a)*r,math.sin(a)*r*.85,random.uniform(3.2,6))
-for i in range(170):
- a=random.random()*math.tau;r=random.uniform(4,22);x=math.cos(a)*r;y=math.sin(a)*r*.86
+for i in range(74):
+ a=i*2.399;r=random.uniform(51,57);tree(math.cos(a)*r,math.sin(a)*r*.84,random.uniform(3.5,6))
+for y in [-37,-23,-9,5,19,36]:tree(-48,y,4);tree(6,y,3.5)
+for x,y in [(10,-19),(39,-17),(38,-1),(11,1),(39,17),(15,23),(32,29)]:
+ tree(x,y,4.2);plant(x+1,y,.25,.35);plant(x-1,y,.25,.3)
+for y in [-34,-20,-6,8,22]:
+ for x in [-44,-28,-12]:plant(x,y,.26,.36);lantern(x-.7,y,.25)
+for i in range(220):
+ a=random.random()*math.tau;r=random.uniform(8,48);x=math.cos(a)*r;y=math.sin(a)*r*.86
+ if abs(x-2)<4 or x<0:continue
  if any(math.hypot(x-hx,y-hy)<3.6 for hx,hy in homes):continue
  for j in range(3):leaf((x,y,.3),.22,j*2.4,'leaflight')
  if i%2==0:ball((x,y,.47),(.1,.1,.1),'flower' if i%3 else 'pink',8,4)
-group('Plaza');beam((0,0,.2),(0,0,.32),4.1,'stone',n=64)
-group('TogetherTree',(0,1,.25));tree(0,0,4)
+group('Plaza');beam((7,-30,.2),(7,-30,.32),5,'stone',n=64)
+group('TogetherTree',(20,-20,.25));tree(0,0,4)
 for i in range(3):
- group('Orb_'+str(i),(math.cos(i*2.1)*1.7,1+math.sin(i*2.1)*1.3,2.2+i*.3));ball((0,0,0),(.23,.23,.23),'energy',16,8)
-spots={'park':(-6,0),'library':(-15,6),'growth':(15,7),'play':(8,-13),'class':(-9,-13),'workshop':(0,17),'shop':(6,0)}
+ group('Orb_'+str(i),(20+math.cos(i*2.1)*1.7,-20+math.sin(i*2.1)*1.3,2.2+i*.3));ball((0,0,0),(.23,.23,.23),'energy',16,8)
+spots={'park':(20,-24),'library':(14,-8),'growth':(14,10),'play':(31,10),'class':(29,-8),'workshop':(24,25),'shop':(34,-24)}
+group('PublicPaths');path((20,-33,0),(20,28,0),2)
 for key,(x,y) in spots.items():
  group('Place_'+key,(x,y,.25));beam((0,0,0),(0,0,.16),2.4,'stone',n=32)
  for bx in [-1.7,1.7]:beam((bx,1,0),(bx,1,2.8),.12,'wood')
@@ -53,7 +97,7 @@ for key,(x,y) in spots.items():
  else:
   box((0,0,.9),(3,1.2,.2),'lightwood')
   for bx in [-1,0,1]:box((bx,0,1.22),(.55,.55,.45),'terracotta' if bx else 'roof');box((bx,0,1.47),(.6,.6,.05),'paper')
- group('Paths_'+key);path((x,y,0),(x*.75,y*.75,0))
+ group('Paths_'+key);path((x,y-2.5,0),(20,y-2.5,0),1.6)
 # A richer cutaway cabin; semantic props remain separate for interaction and personalization.
 group('HomeShell')
 for j in range(34):box((0,(j-16.5)*.21,.18),(8,.198,.25),'lightwood' if j%4 else 'wood')
@@ -99,14 +143,15 @@ for name in ['Torso','Head','ArmL','ArmR','LegL','LegR']:
  else:
   x=-.12 if name.endswith('L') else .12;groups['Avatar_'+name].location=(x,0,.67);beam((0,0,0),(0,0,-.36),.09,'ink');ball((0,-.06,-.44),(.12,.2,.085),'cream')
 roots={}
-for name in ['Village','Home','Avatar']:
+for name in ['Village','Home','Avatar','Templates']:
  roots[name]=bpy.data.objects.new(name,None);bpy.context.collection.objects.link(roots[name])
 home_names={'HomeShell','Sofa','Rug','Table','Book','Shelf','Camera','Wish','Doorplate','Mailbox','PlantDecor','FlowerDecor','GiftDecor'}
-for g,obj in groups.items():obj.parent=roots['Avatar' if g.startswith('Avatar_') else 'Home' if g in home_names else 'Village']
+template_names={'Cabin_00','PlotGround','Construction','HouseFrame','WelcomeGarden'}
+for g,obj in groups.items():obj.parent=roots['Templates' if g in template_names else 'Avatar' if g.startswith('Avatar_') else 'Home' if g in home_names else 'Village']
 for (g,m),(vs,fs,smooth) in buckets.items():
  meshdata=bpy.data.meshes.new(g+'_'+m);meshdata.from_pydata(vs,[],fs);meshdata.update();obj=bpy.data.objects.new(g+'_'+m,meshdata);bpy.context.collection.objects.link(obj);obj.parent=groups[g];obj.data.materials.append(M[m])
  for face,s in zip(meshdata.polygons,smooth):face.use_smooth=s
-bpy.ops.wm.save_as_mainfile(filepath=str(OUT/'forest.blend'))
+bpy.ops.wm.save_as_mainfile(filepath=str(Path(__file__).resolve().parent/'forest.blend'))
 bpy.ops.export_scene.gltf(filepath=str(WEB/'forest.glb'),export_format='GLB',export_apply=True,export_draco_mesh_compression_enable=True,export_draco_mesh_compression_level=6)
 (WEB/'manifest.json').write_text(json.dumps({'source':'forest.blend','homes':homes,'places':spots,'groups':list(groups),'vertices':sum(len(v[0]) for v in buckets.values())},indent=2))
 print('FOREST_EXPORT_COMPLETE',flush=True)

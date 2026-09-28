@@ -1,3 +1,4 @@
+import { SPACE_POS } from "./layout.js";
 export const SPACES = [
   ["park", "大公园", "让一个小小的念头，遇见愿意同行的人。", [-6, 0.3, 0]],
   [
@@ -21,7 +22,7 @@ export const SPACES = [
     [0, 0.3, -17],
   ],
   ["shop", "森林小铺", "选一件喜欢的东西，装点自己的生活。", [6, 0.3, 0]],
-];
+].map(([key,title,copy])=>[key,title,copy,[SPACE_POS[key][0],.3,SPACE_POS[key][1]]]);
 export const FIELDS = [
   ["headline", "用一句话介绍自己", "比如：先冒出点子，再一起把它做好。"],
   ["traits", "几个让人记住你的词", "好奇心、慢热、喜欢动手……用顿号分开"],

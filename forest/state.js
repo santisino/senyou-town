@@ -1,6 +1,7 @@
-import { seedResidents, blankResident, FIELDS, SHOP } from "./data.js";
-import { journey, STATIONS } from "./journey.js";
-export const STORAGE = "senyou-forest-demo-v1";
+import { seedResidents, blankResident, FIELDS, SHOP } from "./data.js?v=village-v4";
+import { journey, STATIONS } from "./journey.js?v=village-v4";
+import { claimPlot, advanceCohort, settleSample } from "./settlement.js";
+export const STORAGE = "senyou-forest-village-v2";
 const clone = (x) => structuredClone(x);
 const id = () =>
   globalThis.crypto?.randomUUID?.() || `id-${Date.now()}-${Math.random()}`;
@@ -8,9 +9,15 @@ const fail = (message) => {
   throw new Error(message);
 };
 export function fresh() {
-  const residents = [blankResident(), ...seedResidents()];
+  const residents = [
+    {...blankResident(),arrived:true,plot:null,built:false},
+    ...seedResidents().map(r=>({...r,simulated:true,arrived:false,plot:null,built:false,
+      confirmed:false,reviewed:false,journey:{metMayor:false,key:false,stations:[]}})),
+  ];
   return {
-    version: 1,
+    version: 2,
+    experience: "opening",
+    openingStep: 0,
     actor: "me",
     stage: "preparing",
     welcomeSeen: false,
@@ -20,8 +27,8 @@ export function fresh() {
       tone: "温暖",
       appearance: "green",
       welcome:
-        "欢迎来到百蚂村。今天，我们借一间小屋，慢慢认识自己，也认识身边的人。",
-      goal: "把你喜欢的、擅长的、相处起来舒服的方式，放进自己的小屋。",
+        "欢迎来到百蚂村。公共空间已经准备好，居民区正等我们一起建设。",
+      goal: "一起把陌生的地方变成有彼此的村庄。把你喜欢的、擅长的、相处起来舒服的方式，放进自己的小屋。",
     },
     residents,
     wallets: Object.fromEntries(
@@ -57,7 +64,7 @@ export function visible(s, rid, viewer = s.actor) {
     profile: Object.fromEntries(
       FIELDS.map(([k]) => [
         k,
-        viewer === rid || r.public[k] ? r.profile[k] : "",
+        viewer === rid || (r.confirmed && s.stage==="open" && r.public[k]) ? r.profile[k] : "",
       ]),
     ),
     notes: viewer === rid ? r.notes : {},
@@ -65,16 +72,17 @@ export function visible(s, rid, viewer = s.actor) {
 }
 export function canVisit(s, rid) {
   return (
-    (rid === s.actor && journey(resident(s)).key) ||
+    (rid === s.actor && journey(resident(s)).key && resident(s).built) ||
     (s.stage === "open" &&
       resident(s)?.confirmed &&
-      resident(s, rid)?.confirmed)
+      resident(s, rid)?.confirmed && resident(s,rid)?.built)
   );
 }
 export function ready(r) {
   return (
     !!r.name.trim() &&
     journey(r).key &&
+    r.built &&
     Object.keys(STATIONS).every(k=>journey(r).stations.includes(k)) &&
     r.reviewed &&
     FIELDS.every(([k]) => !!r.profile[k]?.trim())
@@ -103,13 +111,21 @@ export function transact(original, action) {
   switch (a.type) {
     case "meetMayor":
       if(!me.name.trim() || me.name==="新森友")fail("先告诉村长怎么称呼你");
+      claimPlot(s,me);me.arrived=true;
       me.journey={...journey(me),metMayor:true,key:true};s.welcomeSeen=true;
+      if(s.actor==="me")advanceCohort(s,1);
+      break;
+    case "buildHome":
+      if(!journey(me).key || !Number.isInteger(me.plot))fail("先找村长报到，领取宅地钥匙");
+      me.built=true;
+      if(s.actor==="me")advanceCohort(s,2);
       break;
     case "finishStation": {
       const station=STATIONS[a.key];
-      if(!journey(me).key)fail("先找到村长，领取小屋钥匙");
+      if(!journey(me).key || !me.built)fail("先找到村长，再走到宅地搭好基础小屋");
       if(!station || station.fields.some(k=>!me.profile[k]?.trim()))fail("把这一处写好，或明确选择暂不公开");
       me.journey={...journey(me),stations:[...new Set([...journey(me).stations,a.key])]};
+      if(s.actor==="me")advanceCohort(s,Math.min(4,2+me.journey.stations.length));
       break;
     }
     case "welcome":
@@ -138,10 +154,37 @@ export function transact(original, action) {
     case "confirm":
       if (!ready(me)) fail("请逐项填写，或写下暂不公开，并确认阅读自己的介绍");
       me.confirmed = true;
+      if(s.actor==="me")advanceCohort(s,5);
       break;
     case "switch":
       if (!resident(s, a.id)) fail("无此演示居民");
       s.actor = a.id;
+      resident(s).arrived=true;
+      if(resident(s).simulated)resident(s).controlled=true;
+      break;
+    case "cohortNext":
+      if(s.experience!=="opening")fail("当前是已建村庄演示；重新体验才能观看共同建村");
+      advanceCohort(s,Math.min(5,s.openingStep+1));
+      break;
+    case "cohort50": {
+      const templates=seedResidents();
+      while(s.residents.length<50) {
+        const i=s.residents.length, r={...clone(templates[(i-6)%5]),id:`class-${i}`,name:`示例森友${i+1}`,
+          group:"50 人班级模拟",simulated:true,arrived:false,plot:null,built:false,confirmed:false,reviewed:false,
+          journey:{metMayor:false,key:false,stations:[]}};
+        s.residents.push(r);s.wallets[r.id]={coins:100,sent:0};
+        for(let j=0;j<5;j++)s.items.push({id:id(),owner:r.id,creator:r.id,name:r.signature.name,color:r.signature.color,template:r.signature.template,status:"available",kind:"signature"});
+      }
+      advanceCohort(s,s.openingStep);
+      if(s.experience==='mature')for(const r of s.residents.filter(r=>r.simulated&&!r.controlled&&!r.built))settleSample(s,r,6);
+      break;
+    }
+    case "prepareDemo":
+      s.experience="mature";
+      for(const r of s.residents.filter(r=>r.simulated)) {
+        // Demo chapters deliberately prepare samples, never the user's own profile.
+        const controlled=!!r.controlled;r.controlled=false;settleSample(s,r,6);r.controlled=controlled;
+      }
       break;
     case "stage":
       s.stage = a.open ? "open" : "preparing";
@@ -370,7 +413,7 @@ export function load(storage = globalThis.localStorage) {
   try {
     const s = JSON.parse(storage.getItem(STORAGE));
     if (
-      s?.version === 1 &&
+      s?.version === 2 &&
       Array.isArray(s.residents) &&
       s.residents.some((r) => r.id === s.actor) &&
       s.wallets?.[s.actor] &&

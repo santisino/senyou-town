@@ -1,17 +1,11 @@
 import * as T from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
-import { SPACES } from "./data.js";
-import { findPath, journey } from "./journey.js";
-import { ForestCamera } from "./camera.js?v=camera-v3";
-const HOME_POS = [
-  [-9, -6],
-  [0, -10],
-  [9, -6],
-  [-11, 5],
-  [0, 10],
-  [11, 5],
-];
+import { SPACES } from "./data.js?v=village-v4";
+import { findPath, journey } from "./journey.js?v=village-v4";
+import { ForestCamera } from "./camera.js?v=village-v4";
+import { PLOTS, DISTRICTS, ENTRY, MAYOR, SPACE_POS, address, outdoorWalkable } from "./layout.js";
+import { houseStage } from "./settlement.js";
 export class ForestWorld {
   constructor(el, onSelect) {
     this.el = el;
@@ -41,14 +35,15 @@ export class ForestWorld {
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     Object.assign(sun.shadow.camera, {
-      left: -27,
-      right: 27,
-      top: 27,
-      bottom: -27,
+      left: -62,
+      right: 62,
+      top: 62,
+      bottom: -62,
       near: 1,
-      far: 80,
+      far: 150,
     });
-    sun.shadow.normalBias = 0.04;
+    sun.shadow.normalBias = 0.12;
+    sun.shadow.bias = -0.00035;
     this.scene.add(sun);
     this.layer = document.createElement("div");
     this.layer.className = "pins";
@@ -94,7 +89,7 @@ export class ForestWorld {
       .setWorkerLimit(2);
     const loader = new GLTFLoader().setDRACOLoader(draco);
     try {
-      const gltf = await loader.loadAsync("./assets/forest.glb");
+      const gltf = await loader.loadAsync("./assets/forest.glb?v=village-v4");
       this.root = gltf.scene;
       this.scene.add(this.root);
       this.village = this.root.getObjectByName("Village");
@@ -105,6 +100,8 @@ export class ForestWorld {
           o.castShadow = true;
           o.receiveShadow = true;
           o.material.side = T.DoubleSide;
+          o.material.shadowSide = T.FrontSide;
+          if(o.name.startsWith('Terrain_'))o.castShadow=false;
         }
       });
       this.avatar.traverse((o) => {
@@ -115,10 +112,21 @@ export class ForestWorld {
         if (o.isMesh) o.material = o.material.clone();
       });
       this.village.add(this.mayor);
-      this.mayor.position.set(-1.9, 0.33, 3.3);
+      this.mayor.position.set(MAYOR[0], 0.33, MAYOR[1]);
       this.mayor.rotation.y = 0.4;
       this.home.visible = false;
       this.avatar.visible = false;
+      this.templates=this.root.getObjectByName('Templates');
+      this.templates.visible=false;
+      this.plots=PLOTS.map(p=>{
+        const group=new T.Group();group.name='Plot_'+p.id;group.position.set(p.x,0,p.z);this.village.add(group);
+        const parts={};
+        for(const key of ['PlotGround','Construction','HouseFrame','Cabin_00','WelcomeGarden']) {
+          parts[key]=this.templates.getObjectByName(key).clone(true);
+          parts[key].visible=false;group.add(parts[key]);
+        }
+        return {group,parts,stage:null};
+      });
       this.overview();
       return this;
     } finally {
@@ -147,8 +155,33 @@ export class ForestWorld {
               : "#718962",
         );
     });
-    if (this.village) this.refreshPins();
+    if (this.village) {this.updateSettlement();this.refreshPins();}
     this.updateGarden();
+  }
+  updateSettlement() {
+    this.plots?.forEach((plot,i)=>{
+      const r=this.state.residents.find(r=>r.plot===i), stage=houseStage(r);
+      const changing=plot.stage!==null && plot.stage!==stage;
+      plot.stage=stage;plot.resident=r?.id||null;
+      const shown={PlotGround:true,Construction:stage==='claimed'||stage==='building',HouseFrame:stage==='building',Cabin_00:stage==='decorating'||stage==='ready',WelcomeGarden:stage==='ready'};
+      for(const [key,obj] of Object.entries(plot.parts))obj.visible=shown[key];
+      if(r && plot.color!==r.appearance.outfit) {
+        plot.parts.Cabin_00.traverse(o=>{if(o.isMesh&&o.material.name==='terracotta') {if(!o.userData.individualRoof){o.material=o.material.clone();o.userData.individualRoof=true;}o.material.color.set(r.appearance.outfit);}});
+        plot.color=r.appearance.outfit;
+      }
+      if(changing && !this.reduced) {plot.start=performance.now();plot.group.scale.y=.2;}
+    });
+    this.neighbours ||= new Map();
+    const residents=this.state.residents.filter(r=>r.arrived&&r.simulated&&r.id!==this.state.actor&&Number.isInteger(r.plot)).slice(0,8);
+    for(const [id,n] of this.neighbours)if(!residents.some(r=>r.id===id)) {n.model.removeFromParent();this.neighbours.delete(id);}
+    for(const r of residents) {
+      if(this.neighbours.has(r.id))continue;
+      const model=this.avatar.clone(true);model.visible=true;
+      model.traverse(o=>{if(o.isMesh){o.material=o.material.clone();if(r.appearance[o.material.name])o.material.color.set(r.appearance[o.material.name]);}});
+      model.position.set(MAYOR[0]+1,.32,MAYOR[1]+2);this.village.add(model);
+      const route=findPath([model.position.x,model.position.z],this.homePoint(r.id),outdoorWalkable);
+      this.neighbours.set(r.id,{model,route,target:null});
+    }
   }
   updateGarden() {
     if (!this.home || !this.state) return;
@@ -173,9 +206,9 @@ export class ForestWorld {
       wrap.add(item);
       wrap.scale.setScalar(v === 1 ? 0.65 : 0.95);
       wrap.position.set(
-        7.1 + (i % 3) * 0.8,
+        SPACE_POS.play[0]-.9 + (i % 3) * 0.8,
         0.42,
-        14 + Math.floor(i / 3) * 0.65,
+        SPACE_POS.play[1]+1 + Math.floor(i / 3) * 0.65,
       );
       this.garden.add(wrap);
     });
@@ -189,7 +222,7 @@ export class ForestWorld {
     this.refreshPins();
     this.cameraRig.frame();
   }
-  town(position = [3.5, 5.5]) {
+  town(position = ENTRY) {
     this.mode = "town";
     this.village.visible = true;
     this.home.visible = false;
@@ -217,7 +250,7 @@ export class ForestWorld {
     this.home.getObjectByName("FlowerDecor").visible =
       r.decor.includes("flowers");
     this.home.getObjectByName("PlantDecor").visible =
-      !!r.profile.interests || r.decor.includes("fern");
+      journey(r).stations.includes('interest') || r.decor.includes("fern");
     const labelKey=r.id+':'+r.name+':'+r.profile.headline;
     if(this.doorTextKey!==labelKey) {
       this.doorTextKey=labelKey;
@@ -259,12 +292,15 @@ export class ForestWorld {
     this.resident = r;
     // Empty physical stations remain in the room: they are where expression begins.
     this.home.getObjectByName("GiftDecor").visible=this.state.gifts.some(g=>g.to===r.id && g.status==='pending');
-    this.home.getObjectByName("Camera").visible = true;
+    const completed=journey(r).stations;
+    this.home.getObjectByName("Camera").visible = completed.includes('interest');
     this.home.getObjectByName("Book").visible = true;
     this.home.getObjectByName("Wish").visible = true;
+    this.home.getObjectByName("Wish").traverse(o=>{if(o.isMesh&&['water','paper'].includes(o.material.name))o.visible=completed.includes('wish');});
     this.home.getObjectByName("Doorplate").visible = true;
     this.home.getObjectByName("PlantDecor").visible =
-      !!r.profile.interests || r.decor.includes("fern");
+      completed.includes('interest') || r.decor.includes("fern");
+    this.home.getObjectByName("Rug").visible=completed.includes('table') || r.decor.includes('rug');
   }
   pin(label, pos, callback, key, approach) {
     const el = document.createElement("button");
@@ -273,7 +309,7 @@ export class ForestWorld {
     el.title = label + " · 点击走过去";
     el.dataset.key = key;
     el.style.visibility='hidden';
-    const pin = { el, pos: new T.Vector3(...pos), callback, key, approach: approach || [pos[0], pos[2]] };
+    const pin = { el, label, pos: new T.Vector3(...pos), callback, key, approach: approach || [pos[0], pos[2]] };
     el.onclick = e => { if(e.detail===0 || performance.now()>this.cameraRig.suppressClickUntil) this.interact(pin); };
     this.layer.append(el);
     this.pins.push(pin);
@@ -302,9 +338,8 @@ export class ForestWorld {
   }
   approach(key) { this.interact(this.pins.find(p=>p.key===key)); }
   homePoint(id) {
-    const index=this.state.residents.findIndex(r=>r.id===id);
-    const [x,z]=HOME_POS[Math.max(0,index)%HOME_POS.length];
-    return [x,z+3.5];
+    const r=this.state.residents.find(r=>r.id===id), p=PLOTS[r?.plot];
+    return p ? [p.x,p.z+3.5] : [...ENTRY];
   }
   goHome(id, callback) {
     if(this.mode==="home") this.town(this.homePoint(this.resident.id));
@@ -336,21 +371,28 @@ export class ForestWorld {
     }
     this.pin(
       this.state.village.mayor + " · 村长",
-      [-1.9, 2, 3.3],
+      [MAYOR[0], 2, MAYOR[1]],
       () => this.onSelect({ type: "mayor" }),
       "mayor",
-      [-1.75,4.5],
+      [MAYOR[0],MAYOR[1]+1.25],
     );
-    this.state.residents.slice(0, 6).forEach((r, i) => {
-      const [x, z] = HOME_POS[i];
+    PLOTS.forEach((p) => {
+      const r=this.state.residents.find(r=>r.plot===p.id),stage=houseStage(r);
+      // Empty land has no fabricated resident identity. Neighbour drafts are never shown.
+      const label=!r ? `${p.district} ${p.number}号 · 待入住` : r.id===this.state.actor ? !r.built ? "我的宅地 · 打开工具箱" : "我的小屋" : r.name+(stage==='ready' ? this.state.stage==='open'?" · 欢迎来坐坐":" · 已准备好" : " · 正在安家");
       this.pin(
-        r.id === this.state.actor ? "我的小屋" : r.name + "的小屋",
-        [x, 4, z],
-        () => this.onSelect({ type: "resident", id: r.id }),
-        "Cabin_" + String(i).padStart(2, "0"),
-        [x,z+3.5],
+        label,
+        [p.x, r?.built?4:1.1, p.z],
+        () => this.onSelect({ type: "plot", plot:p.id, id:r?.id }),
+        "Plot_" + p.id,
+        [p.x,p.z+3.5],
       );
+      this.pins.at(-1).plot=true;this.pins.at(-1).own=r?.id===this.state.actor;
+      this.pins.at(-1).el.dataset.stage=stage;
     });
+    DISTRICTS.forEach((label,i)=>this.pin(label+" · 居民区",[-25,1,32-i*14],()=>{},'district-'+i,[-3,32-i*14]));
+    this.pin('公共活动区',[24,1,33],()=>{},'public-zone',[20,32]);
+    this.pins.filter(p=>p.key.startsWith('district-')||p.key==='public-zone').forEach(p=>{p.zone=true;p.el.disabled=true;p.el.classList.add('zone-pin');});
       for (const [key, label, , pos] of SPACES)
         this.pin(
           key === "park" ? "森友公告栏 · 大公园" : label,
@@ -373,7 +415,7 @@ export class ForestWorld {
     const hits = this.ray.intersectObject(
       this.mode === "home" ? this.home : this.village,
       true,
-    );
+    ).filter(hit=>{let o=hit.object;while(o){if(!o.visible)return false;o=o.parent;}return true;});
     if (hits.length) {
       let o = hits[0].object;
       while (o) {
@@ -385,6 +427,7 @@ export class ForestWorld {
         }
         const objects = {
           Camera: "interest",
+          Shelf: "interest",
           Book: "book",
           Table: "table",
           Wish: "wish",
@@ -418,12 +461,7 @@ export class ForestWorld {
         (x > 2.45 && z < -0.9 && z > -1.8)
       );
     }
-    if ((x * x) / 23 ** 2 + (z * z) / 20 ** 2 > 1) return false;
-    if (Math.hypot(x, z + 1) < 1.3) return false;
-    if(SPACES.some(([, , ,p])=>Math.abs(x-p[0])<1.9 && Math.abs(z-p[2])<1.3))return false;
-    return !HOME_POS.some(
-      ([hx, hz]) => Math.abs(x - hx) < 2.3 && Math.abs(z - hz) < 2.7,
-    );
+    return outdoorWalkable(x,z);
   }
   setBlocked(b) {
     this.blocked = b;
@@ -444,7 +482,7 @@ export class ForestWorld {
     const root=this.mode==="home"?this.home:this.village;
     for(const hit of ray.intersectObject(root,true)) {
       const mesh=hit.object;
-      if(!/^(Plants|Cabin_|HomeShell|TogetherTree)/.test(mesh.name) || this.faded.includes(mesh))continue;
+      if(!mesh.visible || !/^(Plants|Cabin_|HomeShell|TogetherTree)/.test(mesh.name) || this.faded.includes(mesh))continue;
       if(!mesh.userData.sightMaterial) {mesh.material=mesh.material.clone();mesh.userData.sightMaterial=true;}
       mesh.material.transparent=true;mesh.material.opacity=.17;mesh.material.depthWrite=false;this.faded.push(mesh);
     }
@@ -466,6 +504,16 @@ export class ForestWorld {
       }
     }
     if (this.avatar) {
+      for(const p of this.plots||[])if(p.start) {p.group.scale.y=Math.min(1,.2+(now-p.start)/850);if(p.group.scale.y===1)p.start=null;}
+      if(this.mode!=='home'&&!this.blocked)for(const n of this.neighbours?.values()||[]) {
+        if(!n.target&&n.route.length){const [x,z]=n.route.shift();n.target=new T.Vector3(x,.32,z);}
+        const delta=n.target?.clone().sub(n.model.position);
+        if(delta) {
+          if(delta.length()<.1)n.target=null;
+          else {n.model.position.add(delta.clone().normalize().multiplyScalar(Math.min(delta.length(),dt*2.4)));n.model.rotation.y=Math.atan2(delta.x,delta.z);}
+        }
+        for(const part of ['ArmL','ArmR','LegL','LegR']) {const limb=n.model.getObjectByName('Avatar_'+part);if(limb)limb.rotation.x=delta&&!this.reduced?Math.sin(now*.012+(part==='ArmL'||part==='LegR'?Math.PI:0))*.3:0;}
+      }
       let moving = false;
       if (!this.blocked && this.mode !== "overview") {
         const dx =
@@ -536,12 +584,18 @@ export class ForestWorld {
       let nearest = .75;
       const placed = [];
       for (const p of this.pins) {
-        const distant=this.mode!=='home' && this.cameraRig.controls.getDistance()>110 && p.key!=='mayor' && p.el.textContent!=='我的小屋';
+        const phoneMap=this.el.clientWidth<700&&this.mode!=='home'&&this.cameraRig.controls.getDistance()>180;
+        const distant=this.mode!=='home' && this.cameraRig.controls.getDistance()>110 && p.key!=='mayor' && !p.own && !p.zone;
         p.el.classList.toggle('distant',distant);
-        const v = p.pos.clone().project(this.camera);
+        p.el.textContent=phoneMap&&p.key==='district-2'?'居民区 · 五条街巷':p.label;
+        const anchor=phoneMap&&p.key==='district-2'?new T.Vector3(-25,1,0):phoneMap&&p.key==='public-zone'?new T.Vector3(24,1,0):p.pos.clone();
+        const v = anchor.project(this.camera);
         const x = (v.x * 0.5 + 0.5) * this.el.clientWidth;
         let y = (-v.y * 0.5 + 0.5) * this.el.clientHeight;
         p.el.hidden = v.z > 1 || v.z < -1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 || (this.mode==="town" && this.distance(p)>Math.max(17,this.cameraRig.controls.getDistance()));
+        if(p.plot && !p.own && this.mode!=='home' && this.cameraRig.controls.getDistance()<110 && this.distance(p)>21)p.el.hidden=true;
+        if(p.zone && this.cameraRig.controls.getDistance()<45)p.el.hidden=true;
+        if(phoneMap&&p.zone&&p.key!=='district-2'&&p.key!=='public-zone')p.el.hidden=true;
         if (!p.el.hidden && !distant) {
           for (
             let i = 0;
@@ -557,7 +611,7 @@ export class ForestWorld {
         p.el.style.transform = `translate(-50%,-100%) translate(${x}px,${y}px)`;
         p.el.style.visibility='visible';
         const d = this.distance(p);
-        if (d < nearest) {
+        if (d < nearest && !p.zone) {
           this.nearest = p;
           nearest = d;
         }

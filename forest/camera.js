@@ -14,7 +14,7 @@ export class ForestCamera {
       enableDamping: true, dampingFactor: 0.12, rotateSpeed: 0.65,
       zoomSpeed: 1.05, panSpeed: 0.8, screenSpacePanning: false,
       minPolarAngle: 0.08, maxPolarAngle: Math.PI / 2 - 0.07,
-      minDistance: 3.2, maxDistance: 240, maxTargetRadius: 80,
+      minDistance: 3.2, maxDistance: 500, maxTargetRadius: 140,
     });
     // Do not register OrbitControls keyboard listeners: WASD/arrows belong to walking.
     world.el.addEventListener("pointerdown", e => this.down(e), true);
@@ -61,16 +61,16 @@ export class ForestCamera {
     const w=this.world, c=this.controls, home=w.mode==='home', overview=w.mode==='overview';
     // Flush gesture inertia before explicitly resetting a view; do not fight it every frame.
     c.enableDamping=false;c.update();c.enableDamping=true;
-    c.minDistance=home?2.5:3.2;c.maxDistance=home?65:240;c.maxTargetRadius=home?16:80;
+    c.minDistance=home?2.5:3.2;c.maxDistance=home?65:500;c.maxTargetRadius=home?16:140;
     c.cursor.set(0,home?1:0.9,0);
     this.follow=!home&&!overview;
     const target=home?new T.Vector3(0,1,0):overview?new T.Vector3(0,.9,0):w.pos.clone().add(new T.Vector3(0,.9,0));
     let offset;
     if(overview) {
-      const distance=27/Math.tan(T.MathUtils.degToRad(w.camera.fov/2))/Math.min(1,w.camera.aspect)*1.1;
-      offset=new T.Vector3(.45,1,1).normalize().multiplyScalar(Math.min(225,distance));
+      const distance=61/Math.tan(T.MathUtils.degToRad(w.camera.fov/2))/Math.min(1,w.camera.aspect)*1.1;
+      offset=new T.Vector3(.1,1.4,1).normalize().multiplyScalar(Math.min(490,distance));
     } else if(home) offset=w.el.clientWidth<700?new T.Vector3(12,13,19):new T.Vector3(9,7.5,12);
-    else offset=w.el.clientWidth<700?new T.Vector3(7,15,14):new T.Vector3(7,12,11);
+    else offset=w.el.clientWidth<700?new T.Vector3(10,25,28):new T.Vector3(7,12,11);
     c.target.copy(target);w.camera.position.copy(target).add(offset);c.update();
     this.lastPlayer.copy(w.pos);
   }
