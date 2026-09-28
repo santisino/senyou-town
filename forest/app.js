@@ -1,4 +1,4 @@
-import { ForestWorld } from "./world.js?v=postcards-v1";
+import { ForestWorld } from "./world.js?v=typing-v1";
 import { createSharing } from "./share-ui.js?v=postcards-v1";
 import { FIELDS, SPACES, SHOP, NOTE } from "./data.js?v=village-v4";
 import {
@@ -72,11 +72,12 @@ function toast(text) {
 function commit(a) {
   try {
     const next = transact(state, a);
+    const profileOnly = a.type === "profile" && resident(next).confirmed === me().confirmed;
     persist(next);
     state = next;
-    world?.setState(state);
+    world?.setState(state, { profileOnly });
     if (world?.mode === "home" && homeId) world.updateProps(profile(homeId));
-    hud();
+    if (!profileOnly) hud();
     return true;
   } catch (e) {
     toast(
@@ -1244,7 +1245,7 @@ async function init() {
     hud();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "postcards-v1-20260928",
+      build: "typing-v1-20260928",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),

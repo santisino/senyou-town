@@ -148,8 +148,16 @@ export class ForestWorld {
       if (key) o.material.color.set(appearance[key] || "#91a486");
     });
   }
-  setState(s) {
+  setState(s, { profileOnly = false } = {}) {
+    const previous = this.state;
     this.state = s;
+    // Autosave is not a scene change. Keep labels, routes and HUD nodes intact.
+    if (profileOnly && previous?.actor === s.actor) {
+      const before = previous.residents.find(r => r.id === s.actor)?.appearance;
+      const after = s.residents.find(r => r.id === s.actor)?.appearance;
+      if (JSON.stringify(before) !== JSON.stringify(after)) { this.style(after); this.updateSettlement(); }
+      return;
+    }
     this.style(s.residents.find((r) => r.id === s.actor)?.appearance);
     this.mayor?.traverse((o) => {
       if (o.isMesh && o.material.name === "outfit")
@@ -296,6 +304,8 @@ export class ForestWorld {
   }
   updateProps(r) {
     if (!this.home) return;
+    const pinsChanged = this.resident?.id !== r.id || this.resident?.confirmed !== r.confirmed ||
+      JSON.stringify(journey(this.resident || r).stations) !== JSON.stringify(journey(r).stations);
     this.resident = r;
     this.home.getObjectByName('PhotoStand').visible=r.id===this.state.actor && r.confirmed;
     // Empty physical stations remain in the room: they are where expression begins.
@@ -309,8 +319,21 @@ export class ForestWorld {
     this.home.getObjectByName("PlantDecor").visible =
       completed.includes('interest') || r.decor.includes("fern");
     this.home.getObjectByName("Rug").visible=completed.includes('table') || r.decor.includes('rug');
+    if (pinsChanged && this.mode === 'home') this.refreshPins();
   }
   pin(label, pos, callback, key, approach) {
+    const existing = this.pinPool?.get(key);
+    if (existing) {
+      this.pinPool.delete(key);
+      existing.label = label;
+      existing.callback = callback;
+      existing.pos.set(...pos);
+      existing.approach = approach || [pos[0], pos[2]];
+      if (existing.el.textContent !== label) existing.el.textContent = label;
+      existing.el.title = label + " · 点击走过去";
+      this.pins.push(existing);
+      return;
+    }
     const el = document.createElement("button");
     el.className = "world-pin";
     el.textContent = label;
@@ -355,9 +378,10 @@ export class ForestWorld {
     this.interact({key:"visit:"+id,approach:point,callback});
   }
   refreshPins() {
-    this.pins.forEach((p) => p.el.remove());
-    this.pins = [];
     if (!this.state || !this.village) return;
+    // Reconcile by semantic key, instead of removing and re-adding every button.
+    this.pinPool = new Map(this.pins.map(p => [p.key, p]));
+    this.pins = [];
     if (this.mode === "home") {
       for (const [key, label, pos, approach] of [
         ["door", "门牌", [-1, 1.6, 3.15], [-1,2.75]],
@@ -377,6 +401,7 @@ export class ForestWorld {
         "exit",
         [1,3],
       );
+      this.finishPins();
       return;
     }
     this.pin(
@@ -411,6 +436,11 @@ export class ForestWorld {
           "Place_" + key,
           [pos[0],pos[2]+2.5],
         );
+    this.finishPins();
+  }
+  finishPins() {
+    for (const p of this.pinPool.values()) p.el.remove();
+    this.pinPool = null;
   }
   pick(e) {
     if (this.blocked || !this.root) return;
@@ -588,7 +618,8 @@ export class ForestWorld {
       this.cameraRig.update();
       const pv=this.pos.clone().add(new T.Vector3(0,2.25,0)).project(this.camera);
       this.playerLabel.hidden=this.mode==='overview';
-      this.playerLabel.textContent='我 · '+(this.state?.residents.find(r=>r.id===this.state.actor)?.name || '新森友');
+      const playerName='我 · '+(this.state?.residents.find(r=>r.id===this.state.actor)?.name || '新森友');
+      if(this.playerLabel.textContent!==playerName)this.playerLabel.textContent=playerName;
       this.playerLabel.style.transform=`translate(-50%,-100%) translate(${(pv.x*.5+.5)*this.el.clientWidth}px,${(-pv.y*.5+.5)*this.el.clientHeight}px)`;
       if(this.metrics.frames%8===0) this.clearSightline();
       this.nearest = null;
@@ -598,7 +629,8 @@ export class ForestWorld {
         const phoneMap=this.el.clientWidth<700&&this.mode!=='home'&&this.cameraRig.controls.getDistance()>180;
         const distant=this.mode!=='home' && this.cameraRig.controls.getDistance()>110 && p.key!=='mayor' && !p.own && !p.zone;
         p.el.classList.toggle('distant',distant);
-        p.el.textContent=phoneMap&&p.key==='district-2'?'居民区 · 五条街巷':p.label;
+        const label=phoneMap&&p.key==='district-2'?'居民区 · 五条街巷':p.label;
+        if(p.el.textContent!==label)p.el.textContent=label;
         const anchor=phoneMap&&p.key==='district-2'?new T.Vector3(-25,1,0):phoneMap&&p.key==='public-zone'?new T.Vector3(24,1,0):p.pos.clone();
         const v = anchor.project(this.camera);
         const x = (v.x * 0.5 + 0.5) * this.el.clientWidth;

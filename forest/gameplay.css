@@ -27,7 +27,7 @@ body.panel-open #camera-tools {visibility:hidden;}
 .station-panel { width:490px;max-height:82dvh;background:#fffaf0f5; }
 .station-intro { color:#65755f; margin-bottom:16px; }
 .station-checklist p { padding:12px;border-bottom:1px solid #e1ddcd; }
-.world-pin { max-width:170px;white-space:normal;font-size:12px; }
+.world-pin { max-width:170px;white-space:normal;font-size:12px;transition:background .16s; }
 .world-pin.near { background:#385f41;color:#fff8e8;box-shadow:0 0 0 4px #fcf3c977; }
 .world-pin.distant {width:18px;min-height:18px;height:18px;padding:0;font-size:0;border:3px solid #fff7df;background:#738d65;box-shadow:0 1px 4px #23332166;}
 .world-pin.distant:after {display:none;}
