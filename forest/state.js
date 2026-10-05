@@ -3,6 +3,7 @@ import { journey, STATIONS } from "./journey.js?v=village-v4";
 import { claimPlot, advanceCohort, settleSample } from "./settlement.js";
 import { QUESTIONS } from "./interview.js?v=neighbors-v1";
 import { ensureNetwork, checkpoint, netAction, joined, isPublic, activeVillage } from './villages.js?v=villages-v1';
+import { lessonAction } from './lesson-data.js?v=classroom-v1';
 export const STORAGE = "senyou-forest-village-v2";
 const clone = (x) => structuredClone(x);
 const id = () =>
@@ -104,6 +105,7 @@ export function matches(s, r, query = "", filter = "all") {
 export function transact(original, action) {
   if(action.type.startsWith('net:'))return netAction(original,action);
   const initial=ensureNetwork(clone(original));
+  if(action.type.startsWith('class:'))return checkpoint(lessonAction(initial,action));
   if(['meetMayor','buildHome','confirm','finishStation','buy','sendGift','request','publicResult'].includes(action.type)) {
     if(!joined(initial))fail('先到村口找村长，确认加入本村及公开范围。');
     if(activeVillage(initial).archived)fail('活动已归档。个人资料仍保留，可以去蚂蚁森友村继续探索。');

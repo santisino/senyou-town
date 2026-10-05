@@ -2,6 +2,10 @@
 
 Blender 原创微缩场景 + Three.js 交互体验，静态部署在 GitHub Pages。
 
+## 当前主线：可行走森林与百蚂课堂（2026-10-05）
+
+当前演示入口为 [`/forest/`](https://santisino.github.io/senyou-town/forest/?v=classroom-v1)，操作见 [百蚂合拍局演示指南](forest/CLASSROOM.md)。这一版本采用本机状态，不使用下文历史版本的 PeerJS 场次同步。下文 `meet.html` 和开张日为保留的历史演示，请勿混用其功能、人数及同步说明。
+
 ## 9 月 24 日会议后的新版：蚂上懂我
 
 独立入口：[meet.html](https://santisino.github.io/senyou-town/meet.html)。旧版首页、活动流程、存储键和三维资产保持不变。
