@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="./villages.css?v=villages-v2" />
     <link rel="stylesheet" href="./lesson.css?v=connections-v2" />
     <link rel="stylesheet" href="./connect.css?v=connections-v2-r2" />
+    <link rel="stylesheet" href="./entry.css?v=roles-v1" />
     <script type="importmap">
       {
         "imports": {
@@ -33,15 +34,18 @@
       }
     </script>
   </head>
-  <body>
+  <body data-experience-role="gate">
     <main id="world" aria-label="可探索的森林世界"></main>
     <header>
       <a class="brand" href="./">森友会<span>一间小屋，慢慢认识一个人</span></a>
       <div class="village-name" id="village-name">百蚂村</div>
+      <span id="role-badge"></span>
       <button class="subtle" id="village-entry">村庄</button>
       <button class="subtle" id="mayor-entry">村长工作台</button>
-      <button class="subtle" id="teacher-entry">教学主持台</button>
-      <button class="subtle" id="presenter-entry">演示者</button>
+      <button class="subtle" id="teacher-entry" hidden>活动主持</button>
+      <button class="subtle" id="presenter-entry" hidden>演示工具</button>
+      <button class="subtle" id="role-switch" data-action="entry-gate">切换体验角色</button>
+      <button class="subtle" id="preview-return" data-action="entry-preview-return" hidden>返回村长工作台</button>
     </header>
     <aside id="mission"></aside>
     <div id="village-progress" aria-live="polite"></div>
@@ -62,8 +66,9 @@
       <p>正在铺好林间小路……</p>
     </div>
     <div id="panel-root"></div>
+    <div id="role-root" hidden></div>
     <div id="toast" role="status" aria-live="polite"></div>
     <div class="demo-label">场景交互版 · 虚构居民 · 本地保存</div>
-    <script type="module" src="./app.js?v=connections-v2-r2"></script>
+    <script type="module" src="./app.js?v=roles-v1"></script>
   </body>
 </html>

@@ -2,8 +2,10 @@ import { ForestWorld } from "./world.js?v=edge-pan-v1";
 import { QUESTIONS, draftProfile } from "./interview.js?v=neighbors-v1";
 import { GUIDES, PHOTO_SPOTS, photoMap, gardenCheck } from "./space-guides.js?v=neighbors-v1";
 import { createSharing } from "./share-ui.js?v=connections-v2";
-import { createVillageUI } from './village-ui.js?v=connections-v2';
-import { createLessonUI } from './lesson-ui.js?v=connections-v2-r2';
+import { createVillageUI } from './village-ui.js?v=roles-v1';
+import { createLessonUI } from './lesson-ui.js?v=roles-v1';
+import { entry, soloEmployee, nextDemoResponse } from './entry-data.js?v=roles-v1';
+import { createEntryUI } from './entry-ui.js?v=roles-v1';
 import { lesson,livePair,PHASES } from './lesson-data.js?v=connections-v2';
 import { EXTRA_FIELDS } from './connect-data.js?v=connections-v2';
 import { activeVillage, isPublic, joined, applyArrival, checkpoint } from './villages.js?v=connections-v2';
@@ -18,7 +20,7 @@ import {
   matches,
   transact,
   ready,
-} from "./state.js?v=connections-v2";
+} from "./state.js?v=roles-v1";
 import qrcode from "../vendor/qrcode.mjs";
 import { encodeVillage, decodeVillage } from "./config.js";
 import { journey, nextStation, STATIONS } from "./journey.js?v=village-v4";
@@ -48,9 +50,10 @@ let state = load(),
   returnFocus,
   directoryScroll = 0;
 let stationKey = "door", mayorTurn = 0;
-let sharing, villageUI, lessonUI;
+let sharing, villageUI, lessonUI, entryUI;
 let interviewGroup='interest', interviewIndex=0;
 let demoVisitTimer;
+let demoResponseTimer;
 const params = new URLSearchParams(location.search);
 if (params.get("village") && !params.get('entry') && !state.welcomeSeen)
   state.village.name = params.get("village").slice(0, 30);
@@ -81,12 +84,12 @@ function toast(text) {
 function commit(a) {
   try {
     const next = transact(state, a);
-    const profileOnly = ['interview','note'].includes(a.type) || a.type.startsWith('social:') || (a.type.startsWith('class:')&&!a.type.startsWith('class:admin:')) || (a.type === "profile" && resident(next).confirmed === me().confirmed);
+    const profileOnly = ['interview','note','entry:response'].includes(a.type) || a.type.startsWith('social:') || (a.type.startsWith('class:')&&!a.type.startsWith('class:admin:')) || (a.type === "profile" && resident(next).confirmed === me().confirmed);
     persist(next);
     state = next;
     world?.setState(state, { profileOnly });
     if (world?.mode === "home" && homeId) world.updateProps(profile(homeId));
-    if (!profileOnly||a.type.startsWith('class:')) hud();
+    if (!profileOnly||a.type.startsWith('class:')||a.type==='entry:response') hud();
     return true;
   } catch (e) {
     toast(
@@ -111,6 +114,7 @@ function saveState(next) {
 }
 function panel(title, subtitle, body, foot = "", classes = "") {
   $('#panel-root').dataset.space='';
+  $('#panel-root').dataset.pair='';
   returnFocus = document.activeElement;
   world?.setBlocked(true);
   document.body.classList.add("panel-open");
@@ -125,6 +129,12 @@ function close() {
   $("#panel-root").innerHTML = "";
   world?.setBlocked(false);
   returnFocus?.isConnected && returnFocus.focus({ preventScroll: true });
+}
+function dismissPanel() {
+  if(entry(state).role==='organizer') {
+    if($('.mayor-panel'))entryUI?.handle('entry-gate',{});
+    else {close();villageUI.admin(0);}
+  } else close();
 }
 function villageTravel(dismiss=true) {
   clearTimeout(demoVisitTimer);demoVisitTimer=null;
@@ -147,7 +157,7 @@ document.addEventListener("keydown", (e) => {
   if (!$(".panel")) return;
   if (e.key === "Escape") {
     e.preventDefault();
-    close();
+    dismissPanel();
   }
   if (e.key === "Tab") {
     const els = [
@@ -167,6 +177,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 function hud() {
+  entryUI?.sync();
   document.body.dataset.scene = world?.mode || "overview";
   $("#village-name").textContent = state.village.name;
   document.title = `蚂蚁森友会 · ${state.village.name}`;
@@ -178,12 +189,14 @@ function hud() {
   title=!j.key ? "先逛逛，找到村长" : !r.built ? "到我的宅地，打开工具箱" : !r.confirmed ? isHome ? next ? STATIONS[next].title : "翻开册子，确认小屋里的我" : "进小屋，留下自己的故事" : state.stage!=="open" ? "安家完成，等村长开放串门" : "带着好奇，去认识一位森友";
   copy=!j.key ? "公共空间已经就绪，溪对岸的居民区等我们一起建设。村长在村口等你。" : !r.built ? `钥匙对应 ${address(r)}。过桥后，走到你的宅地开始安家。` : !r.confirmed ? isHome ? "走到物件旁留下故事，再回到房间继续布置。" : "可以自己走，也可以点小屋沿路过去。" : isHome ? "走近物件，读读这个人的故事。" : state.stage!=="open" ? "可以去小铺挑装饰、在信箱制作礼物，或沿路看村庄长出来。" : "公园公告栏有居民名册。先发现，再沿小路去拜访。";
   $("#mission").innerHTML=`<div class="step">${esc(state.stage==="open"?"串门时间":"初到森林")}</div><h2>${esc(title)}</h2><p>${esc(copy)}</p>`;
+  if(soloEmployee(state)&&r.confirmed&&state.stage==='preparing')$('#mission').innerHTML=`<div class="step">我的小屋准备好了</div><h2>回村口，向村长报到</h2><p>让村长看看你的欢迎牌，再一起开启串门时间。</p>${button('沿路去找村长','walk-mayor','','primary')}`;
   if(!joined(state))$('#mission').innerHTML=`<div class="step">${esc(state.village.name)}</div><h2>${me().membership==='pending'?'等待村长回应':'先逛逛，认识这里的村长'}</h2><p>${isPublic(state)?'这座村一直开放。找村长聊聊，再决定加入和公开哪些介绍。':'活动村分别管理加入。拿到活动邀请后，到村口确认自己的公开范围。'}</p>`;
   if(state.stage==='archived')$('#mission').innerHTML=`<div class="step">活动已归档</div><h2>这段相遇，先收在这里</h2><p>个人资料仍保留。你可以从「村庄」去蚂蚁森友村，选择新的公开范围。</p>`;
   if(!isPublic(state)&&joined(state)&&r.confirmed&&state.stage==='open'&&lesson(state).phase>0){
     const task=livePair(state),phase=lesson(state).phase;
     const hint=task?.status==='pending'&&task.members[1]===state.actor?'收到一份协作邀请，去教室看看。':phase===1?'公告栏有懂我卡，找一个具体的连接理由。':phase===2?'协作任务已发布，去教室和伙伴一起做个决定。':'课后可以到成长林记录一次真实尝试。';
     $('#mission').insertAdjacentHTML('beforeend',`<p class="lesson-world-hint"><strong>百蚂合拍局 · ${PHASES[phase]}</strong><br>${hint}${button(phase===1&&!task?'沿路去公告栏':'沿路去教室','space',`data-key="${phase===1&&!task?'park':'class'}"`)}</p>`);
+    if(soloEmployee(state)&&phase===1&&task?.status==='accepted')$('#mission').innerHTML=`<div class="step">伙伴已接受邀请 · 示例回应</div><h2>找村长听下一段安排</h2><p>你们已经结伴。回村口听听接下来一起做什么。</p>${button('沿路去找村长','walk-mayor','','primary')}`;
   }
   const arrival=state.network.arrival;
   if(isHome&&homeId===state.actor&&r.confirmed&&!r.social?.identityConfirmed)$('#mission').insertAdjacentHTML('beforeend',`<p class="lesson-world-hint">册子里还留着一张属于你的村民卡。选一个喜欢的森林称号，把自己的介绍带走。${button('走到册子旁领取','book')}</p>`);
@@ -208,13 +221,37 @@ function hud() {
   $(".demo-label").textContent=state.experience==='opening'?"共同建村 · 同学进度为本机模拟 · 不跨设备同步":"已建村庄演示 · 虚构居民 · 本地保存";
   if(isPublic(state))$('.demo-label').textContent='蚂蚁森友村 · 持续开放的公共村演示 · 不跨设备同步';
   scheduleDemoVisit();
+  scheduleDemoResponse();
+}
+function scheduleDemoResponse() {
+  if(demoResponseTimer||!entryUI||!$('#role-root').hidden)return;
+  const response=nextDemoResponse(state);if(!response)return;
+  const actor=state.actor,village=state.network.active;
+  demoResponseTimer=setTimeout(()=>{
+    demoResponseTimer=null;
+    if(actor!==state.actor||village!==state.network.active||!soloEmployee(state)||!$('#role-root').hidden)return;
+    const current=nextDemoResponse(state);
+    if(!current||current.id!==response.id||current.step!==response.step){scheduleDemoResponse();return;}
+    const showingPair=$('#panel-root').dataset.pair===response.id;
+    const field=showingPair?$('#lesson-agreement'):null;
+    const draft=field?{value:field.value,focused:document.activeElement===field,start:field.selectionStart,end:field.selectionEnd}:null;
+    if(!commit({type:'entry:response',id:response.id,step:response.step}))return;
+    if(showingPair) {
+      lessonUI.pair(response.id);
+      const nextField=$('#lesson-agreement');
+      if(draft&&nextField){nextField.value=draft.value;if(draft.focused){nextField.focus({preventScroll:true});nextField.setSelectionRange(draft.start,draft.end);}}
+    }
+    const words={accept:'接受了邀请',choice:'提交了独立选择',sign:'确认了这条约定',share:'同意分享当前版本',accepted:'同意加入心愿',rejected:'这次心愿名额已满'};
+    toast(`${name(response.other)}${response.kind==='gift'?'收下了你的礼物':words[response.step]} · 示例回应`);
+    scheduleDemoResponse();
+  },1400);
 }
 function scheduleDemoVisit() {
-  if(demoVisitTimer || !me().confirmed || state.stage!=='open' || state.gifts.some(g=>g.to===state.actor&&g.demoVisit))return;
+  if(!soloEmployee(state)||demoVisitTimer || !me().confirmed || state.stage!=='open' || state.gifts.some(g=>g.to===state.actor&&g.demoVisit))return;
   const actor=state.actor;
   demoVisitTimer=setTimeout(()=>{
     demoVisitTimer=null;
-    if(actor!==state.actor || document.querySelector('.panel') || !me().confirmed || state.stage!=='open') {scheduleDemoVisit();return;}
+    if(actor!==state.actor || !soloEmployee(state) || document.querySelector('.panel') || !me().confirmed || state.stage!=='open') {scheduleDemoVisit();return;}
     if(state.gifts.some(g=>g.to===actor&&g.demoVisit))return;
     if(!state.residents.some(r=>r.id!==actor&&r.simulated&&canVisit(state,r.id)&&state.wallets[r.id]?.sent<5&&state.items.some(i=>i.owner===r.id&&i.status==='available')))return;
     if(commit({type:'demoVisit'}))toast('示例森友来访：家门口留下了一份礼物。有空回去看看，不用马上回应。');
@@ -230,10 +267,16 @@ function mayor() {
     panel(state.village.mayor+" · 村长","村口的初次见面",`<p class="quote">${lines[mayorTurn]}</p>${mayorTurn===0?`<label class="field">大家可以叫我<input id="resident-name" maxlength="24" value="${esc(me().name==="新森友"?"":me().name)}" placeholder="你的名字或昵称"></label>`:""}`,button(["你好，我是……","我们怎样一起建村？","领取宅地钥匙"][mayorTurn],"mayor-next","","primary"),"npc-dialog");
     return;
   }
+  if(soloEmployee(state)&&me().confirmed&&!isPublic(state)&&state.stage==='preparing') {
+    panel(`${state.village.mayor} · 欢迎牌挂好了`,'示例村长 · 独自体验 Demo',`<p class="quote">${esc(me().name)}，小屋已经有你的样子了。邻居们也在陆续安家。现在，一起打开村庄，带着好奇去认识彼此吧。</p><p>这是示例村长推进本机故事；正式活动由真实组织者控制开放时间。</p>`,button('我准备好了，开启串门','mayor-open','','primary'),'npc-dialog');return;
+  }
+  if(soloEmployee(state)&&me().confirmed&&!isPublic(state)&&lesson(state).phase===1&&livePair(state)?.status==='accepted') {
+    panel(`${state.village.mayor} · 下一段一起做点什么`,'示例村长 · 协作任务安排','<p class="quote">你们找到伙伴啦。接下来去林间教室，一起面对一个有不同选择的小情境。先各自表达，再看看彼此在意什么，最后留下一个下一次能用的约定。</p><p>示例搭档会回应自己的部分，你只需要表达和确认自己的想法。</p>',button('听完安排，去林间教室','mayor-task','','primary'),'npc-dialog');return;
+  }
   panel(
     `和${state.village.mayor}聊聊`,
     `${state.village.name} · ${state.stage === "open" ? "串门时间" : "入驻时间"}`,
-    `<p class="quote">${esc(state.village.welcome)}</p><p>${esc(state.village.goal)}</p><div class="notice">${state.stage === "open" ? "大家可以去串门啦。收到礼物、看见心愿，都只是认识的开始；是否进一步连接，由你们自己决定。" : "现在先准备自己的小屋，还不能去别人家。线下主持人宣布开放后，会由演示者控制台切换阶段。"}</div>`,
+    `<p class="quote">${esc(state.village.welcome)}</p><p>${esc(state.village.goal)}</p><div class="notice">${state.stage === "open" ? "大家可以去串门啦。收到礼物、看见心愿，都只是认识的开始；是否进一步连接，由你们自己决定。" : "先准备自己的小屋，确认介绍后再来找我。通过活动邀请进入时，串门由本场组织者统一开放；本机 Demo 不会与主持人的另一台设备同步。"}</div>`,
     button(
       !me().built ? "去我的宅地" : me().confirmed ? "回我的小屋" : "继续入驻",
       "own",
@@ -695,30 +738,15 @@ function renderSpace(key) {
   }
 }
 function presenterPanel() {
-  presenter = true;
-  panel(
-    "演示者控制台",
-    "仅控制本机示例，不会改变其他设备的状态。",
-    `<div class="notice">当前角色：${esc(me().name)} · ${state.stage === "open" ? "串门已开放" : "正在准备小屋"}。切换角色即模拟对方看到的画面。</div><div class="toolbar"><select id="actor-select">${state.residents
-      .filter(r=>!r.id.startsWith('stress-'))
-      .map(
-        (r) =>
-          `<option value="${r.id}" ${r.id === state.actor ? "selected" : ""}>${esc(r.name)}</option>`,
-      )
-      .join(
-        "",
-      )}</select>${button("切换到这个角色", "switch-role", "", "primary")}${button(state.stage === "open" ? "关闭串门" : "开放串门", "toggle-stage")}</div><section class="section"><h3>从共同建村开始</h3><p>首次入驻从空宅地开始。模拟同学随你的报到、建设和表达逐步安家，不是真实在线用户。提前完成的人可以继续布置；开放不会替未完成的人确认介绍。</p><div class="actions">${button("模拟下一批同学安家", "cohort-next")}${button("演示 50 人班级容量", "cohort-50")}${button("从空宅地重新体验", "reset")}</div><p>当前模拟进度 ${state.openingStep}/5 · 实际到达 ${villageCounts(state).arrived} 位 · 已准备好 ${villageCounts(state).ready} 间。</p></section><section class="section"><h3>直接看已建好的村庄</h3><p>为讲解准备完整的虚构居民，直接体验串门。不会填写或确认你的个人资料。</p>${button("进入已建村庄演示","mature-demo","","primary")}</section><div class="actions">${button("设置村长与村庄", "village")}${button("培训扫码入驻", "qr")}</div><section class="section"><h3>已建村庄的故事章节</h3><p class="muted">以下是演示者快捷方式，会准备虚构角色；不是普通玩家的开场。</p><div class="story-list">${["从村口观察已建村庄", "小林的小屋与完整说明书", "村庄开放，小禾发现摄影心愿", "走进小林家，逐层认识他", "小禾提交同行申请", "切换小林，回应申请", "留份礼物，建立一次连接", "活动之后，在成长林回顾"].map((t, i) => button(t, "story", `data-index="${i}"`)).join("")}</div></section><small>DISC、合拍建议和其他居民均为示例。联系人交换、真实报告、跨设备同步由正式产品实现。</small>`,
-    "",
-    "wide",
-  );
-  const nextBatch=$('[data-action="cohort-next"]');
-  $('.panel-body').insertAdjacentHTML('afterbegin',`<section class="lesson-growth-entry"><h3>新版 · 百蚂合拍局</h3><p>课堂进度、懂我卡、双人协作与班级复盘。打开教学主持台的「演示说明」开始。</p>${button('打开教学主持台','learn-teacher','','primary')}</section>`);
-  $('.panel-body').insertAdjacentHTML('afterbegin',`<div class="notice">这里是演示工具，不是村长权限。管理活动、成员与公共内容，请使用独立的「村长工作台」。${button('打开村长工作台','net-admin')}</div>`);
-  $('.panel-body').insertAdjacentHTML('afterbegin',`<section class="section"><h3>体验一次被邻居惦记</h3><p>完成介绍且开放串门后，离开面板探索 8 秒，会收到一次明确标注的示例来访。也可在这里触发；每位角色只生成一次，不重复扣款或送礼。</p>${button(state.gifts.some(g=>g.to===state.actor&&g.demoVisit)?'查看本角色的来访礼物':'模拟森友来访送礼','demo-visit','','primary')}</section>`);
-  if(state.experience!=='opening' || state.openingStep>=5) {
-    nextBatch.disabled=true;
-    nextBatch.textContent=state.experience!=='opening'?'当前是已建村庄演示':'安家示例已展示完，未完成人可继续布置';
-  }
+  if(entry(state).role!=='organizer')return;
+  presenter=true;
+  panel('演示工具','活动组织者 · 只改变当前浏览器的示例状态',
+    '<p>普通员工不需要这些工具。活动阶段、邀请和成果都在村长工作台中操作。</p>'+
+    section('模拟班级容量','可装入 50 个虚构居民的安家进度，验证地图和列表呈现；不代表百人实时在线。')+
+    '<div class="actions">'+button('演示 50 人班级容量','cohort-50')+button('运行检查','quality')+'</div>'+
+    section('需要从头重新体验？','这会清除新版 Demo 的本地测试状态，包括已填写的介绍、礼物与活动记录。先保存需要保留的内容；切换角色本身不需要重置。')+
+    button('从空宅地重新体验','reset','','danger'),
+    button('返回村长工作台','net-admin','','primary')+button('预览员工体验','entry-preview'),'wide');
 }
 function village() {
   panel(
@@ -856,6 +884,9 @@ document.addEventListener("click", async (e) => {
   if (!b) return;
   const a = b.dataset.action,
     d = b.dataset;
+  if(entryUI?.handle(a,d))return;
+  const organizerOnly=a==='learn-teacher'||['learn-authorize','learn-activity','learn-tab','learn-phase','learn-seed','learn-demo-ready','learn-sample','learn-actor','learn-reset-check','learn-reset','social-graph','presenter','quality','story','switch-role','toggle-stage','reset','reset-confirm','mature-demo','cohort-next','cohort-50'].includes(a)||a.startsWith('net-')&&['admin','roles','role','tab','stage','settings-save','create','create-save','join-reply','sample-request','member','publish','content-status','invite','preview-share','report-reply','archive-check','archive'].includes(a.slice(4));
+  if(organizerOnly&&entry(state).role!=='organizer'){toast('这是组织者工具。需要时请明确切换体验角色。');return;}
   if(await lessonUI?.handle(a,d))return;
   if(await villageUI?.handle(a,d))return;
   if(await sharing?.handle(a,d)) return;
@@ -879,6 +910,11 @@ document.addEventListener("click", async (e) => {
   }
   try {
     switch (a) {
+      case 'walk-mayor':walkMayor();break;
+      case 'mayor-open':
+        if(commit({type:'entry:mayor-open'})){close();toast('示例村长：串门时间到了，去公告栏发现一位伙伴吧。');}break;
+      case 'mayor-task':
+        if(commit({type:'entry:mayor-task'}))walkSpace('class');break;
       case 'follow-share':followShare();break;
       case 'growth-task':
         if(commit({type:'note',key:'growth-task',value:'留意一个舒服的配合瞬间'})) {space('growth');toast('观察叶已领取。先去经历一次互动，再回来写。');}
@@ -956,7 +992,7 @@ document.addEventListener("click", async (e) => {
         if(commit({type:"finishStation",key:d.key})) { close();world.updateProps(me());world.refreshPins();toast(STATIONS[d.key].result+"。回到房间，继续认识自己。");hud(); }
         break;
       case "close":
-        close();
+        dismissPanel();
         break;
       case "edit": walkObject("door"); break;
       case "edit-step": edit(stationKey); break;
@@ -975,7 +1011,7 @@ document.addEventListener("click", async (e) => {
       case "confirm":
         if (commit({ type: "confirm" })) {
           world.refreshPins();close();hud();
-          toast("欢迎牌挂好了！再点桌上的册子领取村民卡，或到留影相机拍一张明信片。");
+          toast(soloEmployee(state)&&state.stage!=='open'?"欢迎牌挂好了！可以领取村民卡，再回村口向村长报到。":"欢迎牌挂好了！再点桌上的册子领取村民卡，或到留影相机拍一张明信片。");
         }
         break;
       case "own":
@@ -1067,7 +1103,7 @@ document.addEventListener("click", async (e) => {
         break;
       case "request":
         if (commit({ type: "request", to: d.id })) {
-          toast("意向已送达。可以在演示者模式切换对方回应。");
+          toast(soloEmployee(state)?"意向已送达，示例邻居会在这里回应。":"意向已送达。由对方决定是否接受；本机 Demo 不跨设备同步。");
           object("wish");
         }
         break;
@@ -1299,6 +1335,7 @@ document.addEventListener("click", async (e) => {
           world.town();
           close();
           welcome();
+          entryUI?.resume();
         }
         break;
       case "report":
@@ -1384,6 +1421,7 @@ async function init() {
           .get(k)
           .slice(0, k === "welcome" || k === "goal" ? 300 : 30);
     world = new ForestWorld($("#world"), (hit) => {
+      if(entry(state).role!=='employee'){if(entry(state).role==='organizer')villageUI?.admin();return;}
       if(hit.type==='blockedPath')toast('这条路暂时走不过去。试着走近一点，或从家具旁绕过去再点。');
       if (hit.type === "mayor") mayor();
       if (hit.type === "resident") door(hit.id);
@@ -1396,16 +1434,19 @@ async function init() {
     });
     await world.load();
     checkpoint(state);
-    villageUI=createVillageUI({getState:()=>state,commit,panel,button,esc,toast,close,travel:villageTravel,meetMayor:mayor,goInviter:followShare});
+    villageUI=createVillageUI({getState:()=>state,commit,panel,button,esc,toast,close,travel:villageTravel,meetMayor:mayor,goInviter:followShare,hostActivity:index=>lessonUI?.teacher(index)});
     sharing = createSharing({getState:()=>state,getWorld:()=>world,panel,button,esc,saveState,toast,commit});
-    lessonUI=createLessonUI({getState:()=>state,getWorld:()=>world,commit,panel,button,esc,toast,close,walkSpace,walkHome,travel:villageTravel});
+    lessonUI=createLessonUI({getState:()=>state,getWorld:()=>world,commit,panel,button,esc,toast,close,walkSpace,walkHome,travel:villageTravel,hostWorkspace:(body,index)=>villageUI.activity(body,index)});
+    entryUI=createEntryUI({getState:()=>state,commit,getWorld:()=>world,close,openWorkspace:()=>villageUI.admin(0),hud,invited:params.has('entry')});
     world.setState(state);
     world.town();
     $("#loading").remove();
     hud();
+    if(params.has('entry'))commit({type:'entry:choose',role:'employee',invited:true});
+    entryUI.resume();scheduleDemoResponse();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "connections-v2-20261007",
+      build: "roles-v1-20261008",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),

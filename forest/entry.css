@@ -1,0 +1,75 @@
+/* Reuse the accepted forest, cream paper, sage and warm-wood interface palette. */
+[hidden]{display:none!important}
+body[data-experience-role="gate"] header,
+body[data-experience-role="gate"] #mission,
+body[data-experience-role="gate"] #navigation,
+body[data-experience-role="gate"] #village-progress,
+body[data-experience-role="gate"] #camera-tools,
+body[data-experience-role="gate"] #movement-help,
+body[data-experience-role="gate"] #scene-caption,
+body[data-experience-role="gate"] #joystick,
+body[data-experience-role="gate"] .demo-label{visibility:hidden}
+body[data-experience-role="employee"] #mayor-entry,
+body[data-experience-role="organizer"] #village-entry,
+body[data-experience-role="organizer"] #mission,
+body[data-experience-role="organizer"] #navigation,
+body[data-experience-role="organizer"] #camera-tools,
+body[data-experience-role="organizer"] #joystick,
+body[data-experience-role="organizer"] #village-progress{display:none}
+body[data-experience-role="organizer"].panel-open header{visibility:hidden}
+header{gap:18px;flex-wrap:wrap;align-content:flex-start}
+#role-badge{font-size:13px;color:#456747;padding:7px 12px;border:1px solid #cbd5c0;border-radius:8px;background:#faf8eeeb}
+header #role-switch,header #preview-return{font-size:12px;padding:8px 12px}
+#role-root{position:fixed;inset:0;z-index:35;display:grid;place-items:center;padding:28px;overflow:auto;background:#263d282e;backdrop-filter:blur(3px)}
+.role-welcome{width:min(850px,100%);padding:48px 52px 32px;border:1px solid #e1e3d3;border-radius:26px;background:#faf8eef5;box-shadow:0 20px 80px #24372430;text-align:center}
+.role-welcome h1{font:600 34px/1.5 local-ui,"PingFang SC",sans-serif;color:#304c3d;letter-spacing:.02em}
+.role-welcome>p{font-size:15px;color:#6b7a62;margin:12px 0 28px}
+.role-choices{display:grid;grid-template-columns:1fr 1fr;gap:20px;text-align:left;margin:0 0 24px}
+.role-choices>button{display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding:28px;border:1px solid #cbd5bd;background:#f4f5e9;border-radius:16px;min-width:0;transition:background .16s,border-color .16s,transform .16s}
+.role-choices>button:hover{background:#eaf0de;border-color:#819674;transform:translateY(-2px)}
+.role-choices>button:nth-child(2){background:#f6ede1;border-color:#dec6b1}
+.role-choices>button:nth-child(2):hover{background:#f2e2ce;border-color:#ba7956}
+.role-choices svg{height:36px;width:36px;color:#52714b}
+.role-choices>button:nth-child(2) svg{color:#ab6948}
+.role-choices strong{font-size:21px;font-weight:600;color:#304c3d;line-height:1.6}
+.role-choices span{font-size:15px;font-weight:400;line-height:1.85;color:#66765e}
+.role-choices b{font-size:14px;font-weight:500;margin-top:8px;color:#faf8ee;background:#456747;padding:11px 18px;border-radius:9px}
+.role-choices>button:nth-child(2) b{background:#af704f}
+.role-welcome>small{display:block;font-size:12px;line-height:1.9;color:#7b826f}
+.role-mobile-break{display:none}
+.workspace-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:28px}
+.mayor-main .workspace-actions button{display:grid;justify-items:start;align-content:start;gap:10px;text-align:left;background:#f4f1e6;padding:20px;border:1px solid #dbd9c9;min-height:126px}
+.workspace-actions strong{font-size:17px;font-weight:600;line-height:1.5;color:#304c3d}
+.workspace-actions span{font-size:13px;line-height:1.75;font-weight:400;color:#737d68}
+.workspace-secondary{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:24px 0}
+.workspace-secondary small{flex-basis:100%}
+.workspace-tools summary{cursor:pointer;font-size:14px;color:#65765b;min-height:44px;padding:12px 0}
+.workspace-tools[open]{border-top:1px solid #d5dccb;padding-top:8px}
+.workspace-mode-exit{display:flex;gap:10px;align-items:center;margin-bottom:18px}
+body[data-experience-mode="preview"] #role-badge{background:#faf0df;color:#985e39;border-color:#d9b896}
+body[data-experience-mode="preview"] header{z-index:24}
+.sample-response{padding:14px 18px;background:#edf1e3;border:1px solid #d5dfc6;border-radius:10px;margin:18px 0;font-size:14px;color:#617557;line-height:1.8}
+.sample-response strong{display:block;color:#365640;margin-bottom:4px}
+@media(max-width:1000px){.workspace-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){
+  header{padding:10px!important;gap:6px!important;max-height:82px}
+  header .brand{font-size:17px}header .brand span,.village-name{display:none}
+  #role-badge{font-size:11px;padding:5px 7px}
+  header #role-switch,header #preview-return{font-size:11px;padding:6px 8px;min-height:36px}
+  #role-root{padding:18px;place-items:center}
+  .role-welcome{padding:25px 20px 20px;border-radius:20px}
+  .role-welcome h1{font-size:26px;line-height:1.5}.role-mobile-break{display:block}
+  .role-welcome>p{font-size:13px;margin:10px 0 20px;line-height:1.75}
+  .role-choices{grid-template-columns:1fr;gap:12px;margin-bottom:18px}
+  .role-choices>button{padding:18px 20px;gap:7px;position:relative}
+  .role-choices svg{position:absolute;right:20px;top:20px;height:28px;width:28px}
+  .role-choices strong{font-size:18px;padding-right:35px}
+  .role-choices span{font-size:13px;line-height:1.75}.role-choices span br{display:none}
+  .role-choices b{font-size:12px;padding:8px 14px;margin-top:3px}
+  .role-welcome>small{font-size:11px}
+  .workspace-actions{gap:8px;margin-bottom:20px}.mayor-main .workspace-actions button{padding:15px 12px;min-height:115px}
+  .workspace-actions strong{font-size:15px}.workspace-actions span{font-size:12px}
+  .workspace-mode-exit{flex-wrap:wrap}.workspace-mode-exit button{font-size:12px}
+  body[data-experience-mode="preview"] #mission{top:106px}
+}
+@media(max-height:650px){#role-root{place-items:start center}.role-welcome{margin:auto 0;padding-top:24px;padding-bottom:20px}}

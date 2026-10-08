@@ -117,7 +117,7 @@ export function createConnectUI(ctx) {
       else if(a==='greet')show('换一种更舒服的开场','依据公开协作提示整理，可以自由改写；不是 AI 读取私人报告。',`<label class="field">我的问候<textarea id="social-greeting" maxlength="180">${esc(greeting(s(),d.id).slice(0,180))}</textarea></label>`,b('留下这句问候','greet-send',`data-id="${d.id}"`,'primary'));
       else if(a==='greet-send'){if(commit({type:'class:message',to:d.id,text:$('#social-greeting').value})){toast('问候已保存到对方的本机森林消息。');card(d.id);}}
       else if(a==='inbox')show('我的森林消息','仅当前村本机互动，不是跨设备通知。',inboxHTML(),b('回我的懂我卡','card',`data-id="${s().actor}"`));
-      else if(a==='graph'){if(!mayManage(s())){toast('班级地图由活动村主持人展示。');return true;}show('班级合拍地图','自愿公开的连接线索，不是人格关系诊断。',graphHTML(d.dimension),button('回教学主持台','learn-teacher'),'lesson-console lesson-projection');}
+      else if(a==='graph'){if(!mayManage(s())){toast('班级地图由活动村主持人展示。');return true;}show('班级合拍地图','自愿公开的连接线索，不是人格关系诊断。',graphHTML(d.dimension),button('回活动主持','learn-teacher'),'lesson-console lesson-projection');}
       else if(a==='map-zoom'){const map=$('.map-scroll'),zoomed=map.classList.toggle('zoomed');$('[data-action="social-map-zoom"]').textContent=zoomed?'回到全貌':'放大阅读';map.scrollLeft=zoomed?(map.scrollWidth-map.clientWidth)/2:0;}
       else if(a==='growth'||a==='growth-week')growth(a==='growth-week');
       else if(a==='practice'){if(commit({type:'social:practice',id:d.id,text:document.getElementById('growth-text-'+d.id).value,next:document.getElementById('growth-next-'+d.id).value,outcome:document.getElementById('growth-outcome-'+d.id).value}))growth();}

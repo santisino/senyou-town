@@ -4,10 +4,10 @@ import { EXTRA_FIELDS } from './connect-data.js?v=connections-v2';
 import { encodeVillage } from './config.js';
 import qrcode from '../vendor/qrcode.mjs';
 
-const TABS=['总览','村庄设置','居民与加入','活动与公共空间','邀请与分享','治理与归档'];
+const TABS=['总览','村庄设置','居民与加入','活动与公共空间','邀请与分享','治理与归档','活动主持','参与进度','活动成果'];
 const FIELDS=[...BASE_FIELDS,...EXTRA_FIELDS];
 const ROLE={resident:'普通森友',activity:'活动村长',public:'公共村长',donglai:'东来 · 双村村长'};
-export function createVillageUI({getState,commit,panel,button,esc,toast,close,travel,meetMayor,goInviter}) {
+export function createVillageUI({getState,commit,panel,button,esc,toast,close,travel,meetMayor,goInviter,hostActivity}) {
   const $=q=>document.querySelector(q);
   const b=(text,action,data='',cls='')=>button(text,'net-'+action,data,cls);
   const arrow='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>';
@@ -48,6 +48,21 @@ export function createVillageUI({getState,commit,panel,button,esc,toast,close,tr
     const c=villageSummary(s(),v().id);
     return `<div class="admin-stats"><div><span>已加入</span><strong>${c.joined}</strong><small>本机</small></div><div><span>已准备好</span><strong>${c.ready}</strong><small>本机</small></div><div><span>待处理申请</span><strong>${c.pending}</strong><small>本机</small></div><div class="admin-stat-actions">${b(isPublic(s())?'公共村邀请':'生成活动邀请','invite','','primary')}${b('创建活动村','create')}</div></div><div class="admin-overview"><section><h3>居民近况</h3>${memberRows(3)}</section><section class="admin-rules"><h3>这座村的规则</h3><ol><li>${isPublic(s())?'持续开放，随时入驻':'先安家，再由村长开放串门'}</li><li>公开范围由居民自己确认</li><li>个人资料不因换村重新填写</li></ol>${!isPublic(s())?b(v().stage==='open'?'暂停串门':'开放串门','stage','','primary'):''}</section></div><section class="share-route"><h3>分享如何抵达这里</h3><div><span>朋友的分享</span><i>${arrow}</i><span>蚂蚁森友村</span><i>${arrow}</i><span>找到邀请你的人</span></div></section>`;
   }
+  function homeActions() {
+    const steps=isPublic(s())?[
+      ['1. 设置公共村','村长形象、欢迎语和目标','net-tab','data-index="1"'],
+      ['2. 邀请新邻居','生成公共村链接和扫码入口','net-invite',''],
+      ['3. 经营公共空间','发布图书馆、公园等内容','net-tab','data-index="3"'],
+      ['4. 查看居民近况','加入申请和本机入驻进度','net-tab','data-index="2"'],
+    ]:[
+      ['1. 设置这场活动','村名、欢迎语和本次目标','net-tab','data-index="1"'],
+      ['2. 邀请同事入村','生成链接和扫码入口','net-invite',''],
+      ['3. 开始主持活动','开放串门、发布任务、复盘','net-tab','data-index="6"'],
+      ['4. 查看活动成果','参与进度、班级地图和观察','net-tab','data-index="8"'],
+    ];
+    return `<section class="workspace-actions" aria-label="${isPublic(s())?'管理公共村':'组织活动'}的四个步骤">${steps.map(([title,copy,action,data])=>`<button data-action="${action}" ${data}><strong>${title}</strong><span>${copy}</span></button>`).join('')}</section>
+      <div class="workspace-secondary">${button('预览员工体验','entry-preview')}<small>预览会明确进入员工视角；随时可返回工作台，不删除已填写资料。</small></div>`;
+  }
   function settings() {
     const x=v().settings;
     return `<p>村长形象、欢迎语和目标会更新到村口；邀请码只携带这些公开配置，不带成员或权限。</p><div class="columns"><label class="field">村庄名称<input id="admin-name" maxlength="30" value="${esc(x.name)}" ${isPublic(s())?'readonly':''}></label><label class="field">村长名字<input id="admin-mayor" maxlength="30" value="${esc(x.mayor)}"></label><label class="field">说话语气<select id="admin-tone">${['温暖','轻快','简洁'].map(t=>`<option ${t===x.tone?'selected':''}>${t}</option>`).join('')}</select></label><label class="field">村长形象<select id="admin-appearance">${[['green','苔绿外套'],['earth','陶土外套'],['blue','湖蓝外套']].map(([k,t])=>`<option value="${k}" ${k===x.appearance?'selected':''}>${t}</option>`).join('')}</select></label></div><label class="field">欢迎的话<textarea id="admin-welcome" maxlength="300">${esc(x.welcome)}</textarea></label><label class="field">村庄目标<textarea id="admin-goal" maxlength="300">${esc(x.goal)}</textarea></label>${!isPublic(s())?`<label class="field">加入规则<select id="admin-policy"><option value="invite" ${v().joinPolicy==='invite'?'selected':''}>活动专属邀请后确认加入</option><option value="approval" ${v().joinPolicy==='approval'?'selected':''}>申请后，由村长确认</option></select></label>`:'<p class="notice">蚂蚁森友村持续开放，但居民仍须主动确认加入与公开范围。</p>'}${b('保存村庄设置','settings-save','','primary')}`;
@@ -73,13 +88,22 @@ export function createVillageUI({getState,commit,panel,button,esc,toast,close,tr
       : `<p>归档会停止本活动的新加入与互动，保留本机历史和个人资料。不会自动让成员加入公共村，也不会带走原活动的名单和私密记录。</p>${b(v().archived?'恢复活动为准备中':'归档这场活动','archive-check','',v().archived?'':'danger')}`;
     return `<h3>居民反馈</h3>${reports||'<p class="muted">暂无反馈。居民可在「村庄」入口给村长留言。</p>'}<section><h3>活动生命周期</h3>${lifecycle}</section><p class="notice">这是管理流程演示，不是服务器安全边界。正式版仍需要登录、权限校验、审计、内容治理与数据保留策略。</p>`;
   }
+  function renderWorkspace(body) {
+    const permitted=mayManage(s());
+    panel('村长工作台','活动组织者 · 本机 Demo',`<div class="mayor-workspace"><aside class="mayor-sidebar"><h2>森友会</h2><label class="field"><span class="sr-only">管理哪座村</span><select id="admin-village">${Object.values(s().network.villages).map(x=>`<option value="${x.id}" ${x.id===v().id?'selected':''}>${esc(x.settings.name)}</option>`).join('')}</select></label><p>${stateLabel(v())}</p><nav aria-label="村长工作台栏目">${TABS.map((t,i)=>b(t,'tab',`data-index="${i}" aria-current="${i===tab?'page':'false'}" ${isPublic(s())&&i>=6?'disabled':''}`,i===tab?'selected':'')).join('')}</nav><div class="mayor-identity"><strong>活动组织者</strong><small>本地演示权限，非真实账号授权</small>${button('预览员工体验','entry-preview')}${button('切换体验角色','entry-gate')}</div></aside><main class="mayor-main"><div class="admin-heading"><div><h1>${esc(v().settings.name)}</h1><p>${tab===0?'从这四件事开始，准备并主持一场活动。':TABS[tab]||'演示工具'}</p></div><span class="admin-demo-note">本机演示 · 不与其他设备同步</span></div>${permitted?body:'<p class="notice">请选择有权限的村庄。</p>'}<details class="workspace-tools"><summary>演示工具与示例数据（可选）</summary><p>仅为独自展示准备虚构样本，不是员工必经步骤。</p><div class="actions">${b('准备虚构班级','tab','data-index="9"')}${button('更多演示工具','presenter')}${button('预览员工体验','entry-preview')}</div></details></main></div>`,'','mayor-panel');
+    $('.panel-head .close').textContent='切换体验角色';
+    $('.panel-head .close').dataset.action='entry-gate';
+    $('.panel-head .close').setAttribute('aria-label','切换体验角色');
+  }
   function admin(index=tab) {
     tab=Number(index)||0;
     if(s().network.manager==='resident'){roles();return;}
-    const permitted=mayManage(s());
-    panel('村长工作台','',`<div class="mayor-workspace"><aside class="mayor-sidebar"><h2>森友会</h2><label class="field"><span class="sr-only">管理哪座村</span><select id="admin-village">${Object.values(s().network.villages).map(x=>`<option value="${x.id}" ${x.id===v().id?'selected':''}>${esc(x.settings.name)}</option>`).join('')}</select></label><p>${stateLabel(v())}</p><nav aria-label="村长工作台栏目">${TABS.map((t,i)=>b(t,'tab',`data-index="${i}" aria-current="${i===tab?'page':'false'}"`,i===tab?'selected':'')).join('')}</nav><div class="mayor-identity"><strong>${ROLE[s().network.manager]}</strong><small>本地模拟权限</small>${b('切换演示身份','roles')}${b('退出村长身份','role','data-role="resident"')}</div></aside><main class="mayor-main"><div class="admin-heading"><div><h1>${esc(v().settings.name)}</h1><p>${tab===0?'每一次分享，都有一个可以落脚的地方。':TABS[tab]}</p></div><span class="admin-demo-note">本地框架演示 · 不与其他设备同步</span></div>${permitted?[overview,settings,residents,content,invites,governance][tab]():`<div class="notice"><h3>这个演示身份不管理当前村庄</h3><p>可以从左侧选择有权限的村庄，或明确切换演示身份。不会因为拿到分享链接就获得管理权。</p>${b('切换演示身份','roles')}</div>`}</main></div>`,'','mayor-panel');
-    $('.panel-head .close').textContent='返回森林';$('.panel-head .close').setAttribute('aria-label','返回森林');
-    if(permitted&&!isPublic(s()))$('.admin-heading').insertAdjacentHTML('afterend',`<section class="lesson-growth-entry"><h3>百蚂村 · 合拍局</h3><p>推进课堂阶段，查看参与进度，主持一次共同复盘。</p>${button('打开教学主持台','learn-teacher','','primary')}</section>`);
+    if(tab>=6&&!isPublic(s())){hostActivity?.(tab-6);return;}
+    if(tab>=6)tab=0;
+    renderWorkspace((tab===0?homeActions():'')+[overview,settings,residents,content,invites,governance][tab]());
+  }
+  function activity(body,index=0) {
+    tab=6+Number(index);renderWorkspace(body);
   }
   async function invite() {
     if(!mayManage(s())){toast('请先选择本村的演示村长身份。');return;}
@@ -159,5 +183,5 @@ export function createVillageUI({getState,commit,panel,button,esc,toast,close,tr
     }catch(e){toast(e.message);}
     return true;
   }
-  return {picker,disclosure,roles,admin,invite,spaceHTML,handle};
+  return {picker,disclosure,roles,admin,activity,invite,spaceHTML,handle};
 }

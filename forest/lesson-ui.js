@@ -1,8 +1,9 @@
 import { lesson, PHASES, SCENARIO, livePair, pairView, review, recommendations, cardProfile, classSummary, shareData, shareApprovals, journal } from './lesson-data.js?v=connections-v2';
 import { activeVillage, mayManage, PUBLIC_VILLAGE, ACTIVITY_VILLAGE, joined } from './villages.js?v=connections-v2';
 import qrcode from '../vendor/qrcode.mjs';
-import { createConnectUI } from './connect-ui.js?v=connections-v2-r2';
+import { createConnectUI } from './connect-ui.js?v=roles-v1';
 import { previewData } from './connect-data.js?v=connections-v2';
+import { soloEmployee, entry } from './entry-data.js?v=roles-v1';
 
 export function createLessonUI(ctx) {
   const {getState:s,commit,panel,button,esc,toast,close,walkSpace,walkHome,travel}=ctx;
@@ -25,30 +26,31 @@ export function createLessonUI(ctx) {
     return `<section class="lesson-roster"><div class="lesson-section-head"><h3>本村参与进度</h3><small>${rows.filter(r=>r.simulated).length} 位虚构居民示例 · 非测评完成率</small></div><div class="lesson-table-scroll"><table><thead><tr><th>森友</th><th>个人表达</th><th>协作任务</th><th>分享授权</th></tr></thead><tbody>${rows.map(r=>{const p=livePair(s(),r.id);return `<tr><td>${esc(r.name)}${r.simulated?' <small>示例</small>':''}</td><td>${r.confirmed?'已确认':'准备中'}</td><td>${p?({pending:'待回应',accepted:'进行中',completed:'共同确认'})[p.status]:'未开始'}</td><td>${p?.shareConsent[r.id]?'已作选择':'未授权'}</td></tr>`;}).join('')}</tbody></table></div></section>`;
   }
   function teacher(index=tab) {
+    if(entry(s()).role!=='organizer'){toast('活动主持属于组织者，请先明确切换体验角色。');return;}
     tab=Number(index)||0;
     if(activeVillage(s()).kind==='public'){
-      show('教学主持台','公共村长期开放，课堂进度属于各自的活动村。','<p>公共村保留课后去处，不替所有居民设置上课阶段。回到百蚂活动村，再组织这一堂课。</p>',b('回到百蚂村的主持台','activity','','primary'));return;
+      show('活动主持','公共村长期开放，课堂进度属于各自的活动村。','<p>公共村保留课后去处，不替所有居民设置上课阶段。回到百蚂活动村，再组织这一堂课。</p>',b('回到百蚂村的主持台','activity','','primary'));return;
     }
     if(!mayManage(s())){
-      show('以班主任视角演示','仅切换本地演示身份，不是真实账号权限。','<p>教学主持台负责课堂阶段、准备进度与匿名汇总，不读取个人原始报告、反思或隐藏资料。</p>',b('选择活动村长演示身份','authorize','','primary'));return;
+      show('以班主任视角演示','仅切换本地演示身份，不是真实账号权限。','<p>活动主持负责课堂阶段、准备进度与匿名汇总，不读取个人原始报告、反思或隐藏资料。</p>',b('选择活动村长演示身份','authorize','','primary'));return;
     }
     const l=lesson(s()),copy=phaseCopy[l.phase];
     const rail=`<ol class="lesson-rail">${PHASES.map((name,i)=>`<li class="${l.phase===i?'current':i<l.phase?'passed':''}"><span>${i+1}</span><strong>${name}</strong></li>`).join('')}</ol>`;
     let body='';
-    if(tab===0)body=`<h1>让一次协作，成为认识彼此的开始</h1><p class="lesson-subtitle">准备 → 发现伙伴 → 协作任务 → 共同复盘</p>${rail}<div class="lesson-stage-layout"><section class="lesson-current"><h2>${copy[0]}</h2><p>${copy[1]}</p><div class="actions">${l.phase<3?b(copy[2],'phase',`data-phase="${l.phase+1}"`,'primary'):b(copy[2],'screen','','primary')}${b('走到林间教室','walk')}</div></section><aside class="lesson-tips"><h3>给班主任的话</h3><ol><li><strong>邀请大家先探索</strong><span>让每位同学找到自己的节奏。</span></li><li><strong>提醒本人确认公开范围</strong><span>不愿公开，也能完成个人表达。</span></li><li><strong>不展示隐藏资料</strong><span>复盘行为，不给人格或能力排名。</span></li></ol></aside></div>${progressTable()}`;
+    if(tab===0)body=`<h1>让一次协作，成为认识彼此的开始</h1><p class="lesson-subtitle">准备 → 发现伙伴 → 协作任务 → 共同复盘</p>${rail}<div class="lesson-stage-layout"><section class="lesson-current"><h2>${copy[0]}</h2><p>${copy[1]}</p><div class="actions">${l.phase<3?b(copy[2],'phase',`data-phase="${l.phase+1}"`,'primary'):b(copy[2],'screen','','primary')}${button('预览员工体验','entry-preview')}</div></section><aside class="lesson-tips"><h3>给班主任的话</h3><ol><li><strong>邀请大家先探索</strong><span>让每位同学找到自己的节奏。</span></li><li><strong>提醒本人确认公开范围</strong><span>不愿公开，也能完成个人表达。</span></li><li><strong>不展示隐藏资料</strong><span>复盘行为，不给人格或能力排名。</span></li></ol></aside></div>${progressTable()}`;
     if(tab===1)body=`<h1>看参与进度，不看私人答案</h1><p class="lesson-subtitle">提交选择只显示“进行中”；个人理由与反思不进入主持台。</p>${progressTable()}<div class="lesson-teacher-help"><h3>现场引导顺序</h3><ol><li>尚未完成表达：提醒回到自己的小屋，逐件探索。</li><li>尚未找到伙伴：去森友公告栏看看共同兴趣。</li><li>双方都已作答：请先互相解释理由，再形成约定。</li></ol></div>`;
     if(tab===2)body=screenBody()+connect.insightsHTML();
     if(tab===0)body+=`<section class="social-section"><h2>课堂控制 · 串门与教学统一推进</h2><div class="actions">${PHASES.map((t,i)=>b(`${i+1}. ${t}`,'phase',`data-phase="${i}"`,l.phase===i?'primary':'')).join('')}</div><p>准备阶段不可串门；发现伙伴后可以邀请；发布任务后可以作答；复盘阶段保留查看与回顾，新一轮需单独重置。</p><h3>45 分钟引导稿 / 紧凑版 30 分钟</h3><ol><li>5 分钟 / 3 分钟：找村长、完成表达，说明公开范围自选。</li><li>15 分钟 / 8 分钟：看村民卡、找连接点，邀请一位伙伴。</li><li>20 分钟 / 15 分钟：独立选择、解释理由、写下共同约定。</li><li>5 分钟 / 4 分钟：看班级地图与观察，留下课后实践问题。</li></ol><p>这是主持参考节奏，不是倒计时自动切换。尚未完成者继续表达；先完成者可完善村民卡，不替任何人作答。</p>${button('查看班级合拍地图','social-graph')}${b('查看班级协同观察','tab','data-tab="2"')}</section>`;
     if(tab===1)body+=`<section class="social-section"><h2>专业测评状态与个人表达分开看</h2><p>下面仅为本人自报或明确示例，尚未接入测评系统，不能作为专业测评完成率。</p>${s().residents.filter(r=>r.membership==='joined').map(r=>`<p>${esc(r.name)}：${({'not-started':'尚未开始',sample:'体验示例报告','self-reported':'本人自报已完成，待接口核验',skip:'选择不使用报告'})[r.social?.assessment]||'未自报'}</p>`).join('')}</section>`;
-    if(tab===3)body=`<section class="demo-start"><h1>给客户演示，从这里准备</h1><p>只操作虚构样本，不替真实参与者填写或授权。已接管角色和已有任务不会被覆盖。</p>${b('准备样本并开放发现伙伴','demo-ready','','primary')}<h3>接着选择一个演示角色</h3><div class="actions">${s().residents.filter(r=>r.simulated).slice(0,5).map(r=>b(`作为${r.name}去公告栏`,'actor',`data-id="${r.id}"`)).join('')}</div><p>建议：小禾看小林的卡 → 问候 / 申请心愿 → 发协作邀请 → 主持台发布任务 → 双方确认 → 看班级结果 → 回访成长叶。</p>${b('生成空闲示例组的课堂结果','sample')}${button('查看班级合拍地图','social-graph')}<p>生成结果只补充空闲虚构组合，不自动把课堂切到复盘，也不隐藏邀请入口。</p>${b('开始新一轮课堂','reset-check')}</section>`;
-    show('森友会 / 百蚂合拍局','',`<div class="lesson-workspace"><aside class="lesson-sidebar"><h2>教学主持台</h2><nav>${['课堂进程','参与进度','班级大屏','演示准备'].map((t,i)=>b(t,'tab',`data-tab="${i}" aria-current="${i===tab?'page':'false'}"`,i===tab?'selected':'')).join('')}</nav><small>本机模拟 · 非实时班级</small></aside><main class="lesson-main">${body}${disclaimer}</main></div>`,'','lesson-console');
-    $('.panel-head .close').textContent='返回森林';
+    if(tab===3)body=`<section class="demo-start"><h1>可选：准备虚构班级</h1><p>这些按钮只为展示准备样本，不是参与者的操作。不会替你填写或确认个人说明书，也不覆盖已接管居民与已有任务。</p>${b('准备样本并开放发现伙伴','demo-ready','','primary')}<p>准备后，可以在工作台预览员工体验；活动阶段仍由你在「活动主持」中推进。</p>${button('预览员工体验','entry-preview')}<h3>想看一份示例活动成果？</h3>${b('生成空闲示例组的课堂结果','sample')}${button('查看班级合拍地图','social-graph')}<p>生成结果只补充空闲虚构组合；明确标注示例，不代表真实班级数据。</p>${b('开始新一轮课堂','reset-check')}</section>`;
+    if(ctx.hostWorkspace)ctx.hostWorkspace(body+disclaimer,tab);
+    else show('活动主持','',body+disclaimer,'','lesson-console');
   }
   function screenBody() {
     const x=classSummary(s());
     return `<div class="lesson-section-head"><h1>这一次，我们怎样一起做事</h1>${b('打开投屏视图','screen')}${button('班级合拍地图','social-graph','','primary')}</div><p class="lesson-subtitle">${esc(s().village.name)} · ${PHASES[lesson(s()).phase]} · 只看这次任务，不推断人格与能力</p><div class="lesson-screen-stats"><div><strong>${x.ready}<small> / ${x.joined}</small></strong><span>已确认个人表达</span></div><div><strong>${x.pairs}</strong><span>本轮任务小组</span></div><div><strong>${x.completed}</strong><span>双方确认的约定</span></div></div><section class="lesson-chart"><h2>面对同一个情境，我们先关注什么？</h2><p>${x.anonymous?`仅汇总 ${x.voted} 份主动授权的本机选择。${x.sampleCount?'包含虚构示例，不代表真实班级。':''}`:'至少 3 位参与者提交选择并主动授权后，才显示匿名分布。不显示姓名或个人理由。'}</p>${x.distribution.map(v=>`<div class="lesson-bar"><span>${v.title}</span><div><i style="width:${x.anonymous?v.count/x.voted*100:0}%"></i></div><b>${x.anonymous?v.count+' 人':'—'}</b></div>`).join('')}</section>`;
   }
-  function screen(){if(!mayManage(s())){teacher();return;}show('百蚂合拍局 · 班级大屏','匿名汇总 / 本机演示',screenBody()+connect.insightsHTML()+button('打开班级合拍地图','social-graph','','primary')+disclaimer,b('回教学主持台','tab','data-tab="0"'),'lesson-console lesson-projection');}
+  function screen(){if(!mayManage(s())){teacher();return;}show('百蚂合拍局 · 班级大屏','匿名汇总 / 本机演示',screenBody()+connect.insightsHTML()+button('打开班级合拍地图','social-graph','','primary')+disclaimer,b('回活动主持','tab','data-tab="0"'),'lesson-console lesson-projection');}
   function classroom() {
     const l=lesson(s()),p=livePair(s());
     if(activeVillage(s()).kind==='public'){
@@ -65,7 +67,7 @@ export function createLessonUI(ctx) {
   }
   function pair(id=livePair(s())?.id) {
     const p=pairView(s(),id);if(!p){walkSpace('class');return;}
-    const other=p.members.find(x=>x!==s().actor),sample=s().residents.find(r=>r.id===other)?.simulated;
+    const other=p.members.find(x=>x!==s().actor),sample=s().residents.find(r=>r.id===other)?.simulated&&!s().residents.find(r=>r.id===other)?.controlled;
     let body=`<p class="lesson-pair-names">${esc(label(s().actor))}<span>和</span>${esc(label(other))}</p>`,foot='';
     if(p.status==='pending'){
       body+=`<h2>邀请从一句“愿意吗”开始</h2><p>一起体验「${SCENARIO.title}」。接受邀请不等于公开报告、联系方式或双人海报。</p>`;
@@ -78,7 +80,7 @@ export function createLessonUI(ctx) {
       if(!own){
         body+=`<p>先独立选择。你的理由只会在双方都提交后展示给搭档，不进入班主任看板。</p><fieldset class="lesson-options"><legend>你会先怎么做？</legend>${SCENARIO.choices.map(o=>`<label><input type="radio" name="lesson-choice" value="${o.id}"><span><strong>${o.title}</strong><small>${o.detail}</small></span></label>`).join('')}</fieldset><label class="field">我最在意的是（可不填）<textarea id="lesson-reason" maxlength="180" placeholder="说说你希望保护的事，不需要证明自己是对的。"></textarea></label>`;
         foot=b('提交我的选择','choose',`data-id="${id}" ${lesson(s()).phase!==2?'disabled':''}`,'primary');
-        if(lesson(s()).phase!==2)body+='<p class="notice">等待班主任发布协作任务，再提交选择。</p>';
+        if(lesson(s()).phase!==2)body+=soloEmployee(s())?`<p class="notice">伙伴已结伴。回村口找村长，听听下一段安排，再到教室作答。</p>${button('沿路去找村长','walk-mayor','','primary')}`:'<p class="notice">等待活动组织者发布协作任务，再提交选择。</p>';
       }else if(!both)body+='<div class="notice">你的选择已保存。等待搭档提交后，再一起看彼此的理由。</div>';
       if(sample&&!p.choices[other]&&lesson(s()).phase===2)body+=simulate(id,'choice','模拟搭档独立作答');
       if(both){
@@ -98,9 +100,10 @@ export function createLessonUI(ctx) {
         }
       }
     }
-    show('一次协作，一点新认识','真实本地步骤；示例搭档响应须主动触发。',body,foot+b('回到教室','classroom'));
+    show('一次协作，一点新认识',soloEmployee(s())?'你只表达自己的想法；虚构搭档的示例回应会在这里出现。':'双方各自操作；当前 Demo 不跨设备同步。',body,foot+b('回到教室','classroom'));
+    $('#panel-root').dataset.pair=id;
   }
-  const simulate=(id,step,label)=>`<div class="lesson-simulation"><small>演示专用 · 对方是虚构居民</small>${b(label,'simulate',`data-id="${id}" data-step="${step}"`)}</div>`;
+  const simulate=(id,step,label)=>soloEmployee(s())?`<div class="sample-response"><strong>${esc(label.replace('模拟搭档','示例搭档将'))}</strong>这是虚构邻居的自动示例回应，不需要你替对方操作。${step==='share'?'正式参与者须分别同意，确认约定不等于同意公开。':''}</div>`:entry(s()).mode==='preview'?'<p class="sample-response">这是员工预览。搭档回应不会自动发生；可返回工作台推进活动或准备示例。</p>':entry(s()).role==='employee'?'<p class="sample-response">等待搭档回应。本机 Demo 不与其他设备同步；此处不提供替对方作答的按钮。</p>':`<div class="lesson-simulation"><small>演示专用 · 对方是虚构居民</small>${b(label,'simulate',`data-id="${id}" data-step="${step}"`)}</div>`;
   async function poster(id) {
     const data=shareData(s(),id);if(!data){toast('双方需确认约定，并授权当前这版内容。');return;}
     const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1440;const c=canvas.getContext('2d');
@@ -182,5 +185,5 @@ export function createLessonUI(ctx) {
   }
   function card(id){connect.card(id);}
   function growth(){connect.growth();}
-  return {teacher,classroom,card,recommendHTML,handle,growth,dispose,connect};
+  return {teacher,classroom,card,pair,recommendHTML,handle,growth,dispose,connect};
 }

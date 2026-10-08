@@ -5,6 +5,7 @@ import { QUESTIONS } from "./interview.js?v=neighbors-v1";
 import { ensureNetwork, checkpoint, netAction, joined, isPublic, activeVillage } from './villages.js?v=connections-v2';
 import { lessonAction } from './lesson-data.js?v=connections-v2';
 import { connectAction, EXTRA_FIELDS } from './connect-data.js?v=connections-v2';
+import { entryAction } from './entry-data.js?v=roles-v1';
 export const STORAGE = "senyou-forest-village-v2";
 const clone = (x) => structuredClone(x);
 const id = () =>
@@ -106,6 +107,7 @@ export function matches(s, r, query = "", filter = "all") {
 export function transact(original, action) {
   if(action.type.startsWith('net:'))return netAction(original,action);
   const initial=ensureNetwork(clone(original));
+  if(action.type.startsWith('entry:'))return checkpoint(entryAction(initial,action,transact));
   if(action.type.startsWith('social:'))return checkpoint(connectAction(initial,action));
   if(action.type.startsWith('class:'))return checkpoint(lessonAction(initial,action));
   if(['meetMayor','buildHome','confirm','finishStation','buy','sendGift','request','publicResult'].includes(action.type)) {
