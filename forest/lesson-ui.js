@@ -1,9 +1,9 @@
-import { lesson, PHASES, SCENARIO, livePair, pairView, review, recommendations, cardProfile, classSummary, shareData, shareApprovals, journal } from './lesson-data.js?v=cognition-v1';
-import { activeVillage, mayManage, PUBLIC_VILLAGE, ACTIVITY_VILLAGE, joined } from './villages.js?v=cognition-v1';
+import { lesson, PHASES, SCENARIO, livePair, pairView, review, recommendations, cardProfile, classSummary, shareData, shareApprovals, journal } from './lesson-data.js?v=cognition-v2';
+import { activeVillage, mayManage, PUBLIC_VILLAGE, ACTIVITY_VILLAGE, joined } from './villages.js?v=cognition-v2';
 import qrcode from '../vendor/qrcode.mjs';
-import { createConnectUI } from './connect-ui.js?v=cognition-v1';
-import { previewData } from './connect-data.js?v=cognition-v1';
-import { soloEmployee, entry } from './entry-data.js?v=cognition-v1';
+import { createConnectUI } from './connect-ui.js?v=cognition-v2';
+import { previewData } from './connect-data.js?v=cognition-v2';
+import { soloEmployee, entry } from './entry-data.js?v=cognition-v2';
 
 export function createLessonUI(ctx) {
   const {getState:s,commit,panel,button,esc,toast,close,walkSpace,walkHome,travel}=ctx;

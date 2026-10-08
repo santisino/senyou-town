@@ -1,12 +1,12 @@
 import { seedResidents, blankResident, FIELDS, SHOP } from "./data.js?v=village-v4";
-import { journey, STATIONS } from "./journey.js?v=cognition-v1";
-import { claimPlot, advanceCohort, settleSample } from "./settlement.js?v=cognition-v1";
+import { journey, STATIONS } from "./journey.js?v=cognition-v2";
+import { claimPlot, advanceCohort, settleSample } from "./settlement.js?v=cognition-v2";
 import { QUESTIONS } from "./interview.js?v=neighbors-v1";
-import { ensureNetwork, checkpoint, netAction, joined, isPublic, activeVillage } from './villages.js?v=cognition-v1';
-import { lessonAction } from './lesson-data.js?v=cognition-v1';
-import { connectAction, EXTRA_FIELDS } from './connect-data.js?v=cognition-v1';
-import { entryAction } from './entry-data.js?v=cognition-v1';
-import { cognitionAction } from './cognition-data.js?v=cognition-v1';
+import { ensureNetwork, checkpoint, netAction, joined, isPublic, activeVillage } from './villages.js?v=cognition-v2';
+import { lessonAction } from './lesson-data.js?v=cognition-v2';
+import { connectAction, EXTRA_FIELDS } from './connect-data.js?v=cognition-v2';
+import { entryAction } from './entry-data.js?v=cognition-v2';
+import { cognitionAction } from './cognition-data.js?v=cognition-v2';
 export const STORAGE = "senyou-forest-village-v2";
 const clone = (x) => structuredClone(x);
 const id = () =>

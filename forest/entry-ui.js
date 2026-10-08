@@ -1,4 +1,4 @@
-import { entry } from './entry-data.js?v=cognition-v1';
+import { entry } from './entry-data.js?v=cognition-v2';
 
 export function createEntryUI({getState,commit,getWorld,close,openWorkspace,hud,invited=false}) {
   const $=q=>document.querySelector(q);

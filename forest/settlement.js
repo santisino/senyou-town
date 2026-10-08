@@ -1,4 +1,4 @@
-import { journey, STATIONS } from "./journey.js?v=cognition-v1";
+import { journey, STATIONS } from "./journey.js?v=cognition-v2";
 import { PLOTS } from "./layout.js";
 
 export function houseStage(r) {

@@ -1,6 +1,6 @@
-import { EXTRA_FIELDS,IDENTITIES,PREFERENCES,privacy,social,publicPerson,connectionReasons,matchList,previewData,introduction,growthInfo,classGraph,classInsights,greeting } from './connect-data.js?v=cognition-v1';
-import { lesson,livePair,classSummary } from './lesson-data.js?v=cognition-v1';
-import { mayManage,activeVillage } from './villages.js?v=cognition-v1';
+import { EXTRA_FIELDS,IDENTITIES,PREFERENCES,privacy,social,publicPerson,connectionReasons,matchList,previewData,introduction,growthInfo,classGraph,classInsights,greeting } from './connect-data.js?v=cognition-v2';
+import { lesson,livePair,classSummary } from './lesson-data.js?v=cognition-v2';
+import { mayManage,activeVillage } from './villages.js?v=cognition-v2';
 import qrcode from '../vendor/qrcode.mjs';
 import { photograph } from './share-render.js?v=connections-v2';
 

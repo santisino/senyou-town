@@ -2,11 +2,11 @@ import * as T from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { SPACES } from "./data.js?v=village-v4";
-import { findPath, journey } from "./journey.js?v=cognition-v1";
-import { ForestCamera } from "./camera.js?v=cognition-v1";
+import { findPath, journey } from "./journey.js?v=cognition-v2";
+import { ForestCamera } from "./camera.js?v=cognition-v2";
 import { PLOTS, DISTRICTS, ENTRY, MAYOR, SPACE_POS, address, outdoorWalkable } from "./layout.js";
-import { houseStage } from "./settlement.js?v=cognition-v1";
-import { cognition, DIMS, sample, BOOKS } from './cognition-data.js?v=cognition-v1';
+import { houseStage } from "./settlement.js?v=cognition-v2";
+import { cognition, DIMS, sample, BOOKS } from './cognition-data.js?v=cognition-v2';
 export class ForestWorld {
   constructor(el, onSelect) {
     this.el = el;
@@ -95,7 +95,7 @@ export class ForestWorld {
       this.scene.add(this.root);
       this.village = this.root.getObjectByName("Village");
       this.home = this.root.getObjectByName("Home");
-      const added=await loader.loadAsync('./assets/cognition.glb?v=cognition-v1');
+      const added=await loader.loadAsync('./assets/cognition.glb?v=cognition-v2');
       this.cognitionRoom=added.scene.getObjectByName('CognitionRoom');
       this.home.add(this.cognitionRoom);
       this.styleTemplates=added.scene.getObjectByName('StyleTemplates');
@@ -334,13 +334,13 @@ export class ForestWorld {
     if(!own||!c){this.lightPools.forEach(pool=>pool.visible=false);this.cognitionRoom.getObjectByName('ReactionBubbles').visible=false;for(let i=0;i<2;i++)this.cognitionRoom.getObjectByName('ReactionFlow_'+i).visible=false;return;}
     this.lightPools.forEach((pool,i)=>pool.visible=c.lightOn[i]);
     const bubbles=this.cognitionRoom.getObjectByName('ReactionBubbles'),focus=c.lab?.focus||'bubble';
-    bubbles.visible=!!c.lab&&c.lab.step>=2&&focus!=='none';
+    bubbles.visible=!!c.lab&&c.lab.step>=2&&['bubble','delay'].includes(focus);
     this.reactionFocus=focus;this.reactionStarted=performance.now();
     for(let i=0;i<2;i++)this.cognitionRoom.getObjectByName('ReactionFlow_'+i).visible=!!c.lab&&c.lab.step>=2;
     bubbles.scale.setScalar((focus==='stable'?.3:focus==='resonance'?.7:1)*(1-(c.lab?.checks.length||0)*.08));
-    const reactionColor={stable:'#83BEB6',resonance:'#DDB565',bubble:'#DC9B99',delay:'#A2B292',none:'#83BEB6'}[focus];
-    for(const group of [bubbles,this.cognitionRoom.getObjectByName('ReactionDish')])group.traverse(o=>{if(o.isMesh&&o.material.name!=='cream'){if(!o.userData.reactionMaterial){o.material=o.material.clone();o.userData.reactionMaterial=true;}o.material.color.set(reactionColor);}});
-    BOOKS.forEach((book,i)=>{const o=this.cognitionRoom.getObjectByName('BehaviorBook_'+i);o.rotation.z=c.bookMarks[book.id]?.turned?0:book.kind==='shadow'?.38:0;o.scale.setScalar(c.bookMarks[book.id]?.match==='no'?.82:1);if(book.kind==='pressure')o.traverse(child=>{if(child.isMesh&&child.material.name==='water')child.visible=!c.stormUnlocked;});});
+    const reactionColor={stable:'#83B98C',resonance:'#91C9A1',bubble:'#E0C56F',delay:'#CF8D78',none:'#A3A6A0'}[focus];
+    for(const group of [bubbles,this.cognitionRoom.getObjectByName('ReactionDish')])group.traverse(o=>{if(o.isMesh&&o.material.name!=='cream'){if(!o.userData.reactionMaterial){o.material=o.material.clone();o.userData.reactionMaterial=true;}o.material.color.set(reactionColor);o.material.emissive.set(focus==='resonance'?reactionColor:'#000000');o.material.emissiveIntensity=focus==='resonance'?.3:0;}});
+    BOOKS.forEach((book,i)=>{const o=this.cognitionRoom.getObjectByName('BehaviorBook_'+i);o.rotation.z=c.bookMarks[book.id]?.turned?0:book.kind==='shadow'?.38:0;o.rotation.y=book.kind==='secondary'?Math.PI/2:0;o.scale.setScalar(c.bookMarks[book.id]?.match==='no'?.82:1);if(book.kind==='pressure')o.traverse(child=>{if(child.isMesh&&child.material.name==='water'){if(!child.userData.pressureGlass){child.material=child.material.clone();child.material.transparent=true;child.material.opacity=.55;child.userData.pressureGlass=true;}child.visible=!c.stormUnlocked;}});});
     for(let i=0;i<3;i++) {const window=this.cognitionRoom.getObjectByName('StateWindow_'+i);window.userData.open=c.window===['natural','work','pressure'][i];}
   }
   updateExteriorStyles() {

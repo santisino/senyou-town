@@ -1,5 +1,5 @@
 import { FIELDS, seedResidents } from './data.js?v=village-v4';
-import { STATIONS } from './journey.js?v=cognition-v1';
+import { STATIONS } from './journey.js?v=cognition-v2';
 
 // Canonical people + village memberships. The old scene receives a derived active-village
 // projection; it is checkpointed before every switch. No cross-device authority is claimed.

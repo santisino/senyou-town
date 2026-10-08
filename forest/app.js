@@ -1,16 +1,16 @@
-import { ForestWorld } from "./world.js?v=cognition-v1";
-import { createCognitionUI } from './cognition-ui.js?v=cognition-v1';
-import { cognition,progress as cognitionProgress } from './cognition-data.js?v=cognition-v1';
+import { ForestWorld } from "./world.js?v=cognition-v2";
+import { createCognitionUI } from './cognition-ui.js?v=cognition-v2';
+import { cognition,progress as cognitionProgress } from './cognition-data.js?v=cognition-v2';
 import { QUESTIONS, draftProfile } from "./interview.js?v=neighbors-v1";
 import { GUIDES, PHOTO_SPOTS, photoMap, gardenCheck } from "./space-guides.js?v=neighbors-v1";
 import { createSharing } from "./share-ui.js?v=connections-v2";
-import { createVillageUI } from './village-ui.js?v=cognition-v1';
-import { createLessonUI } from './lesson-ui.js?v=cognition-v1';
-import { entry, soloEmployee, nextDemoResponse } from './entry-data.js?v=cognition-v1';
+import { createVillageUI } from './village-ui.js?v=cognition-v2';
+import { createLessonUI } from './lesson-ui.js?v=cognition-v2';
+import { entry, soloEmployee, nextDemoResponse } from './entry-data.js?v=cognition-v2';
 import { createEntryUI } from './entry-ui.js?v=roles-v2';
-import { lesson,livePair,PHASES } from './lesson-data.js?v=cognition-v1';
-import { EXTRA_FIELDS } from './connect-data.js?v=cognition-v1';
-import { activeVillage, isPublic, joined, applyArrival, checkpoint } from './villages.js?v=cognition-v1';
+import { lesson,livePair,PHASES } from './lesson-data.js?v=cognition-v2';
+import { EXTRA_FIELDS } from './connect-data.js?v=cognition-v2';
+import { activeVillage, isPublic, joined, applyArrival, checkpoint } from './villages.js?v=cognition-v2';
 import { FIELDS, SPACES, SHOP, NOTE } from "./data.js?v=village-v4";
 import {
   fresh,
@@ -22,12 +22,12 @@ import {
   matches,
   transact,
   ready,
-} from "./state.js?v=cognition-v1";
+} from "./state.js?v=cognition-v2";
 import qrcode from "../vendor/qrcode.mjs";
 import { encodeVillage, decodeVillage } from "./config.js";
-import { journey, nextStation, STATIONS } from "./journey.js?v=cognition-v1";
+import { journey, nextStation, STATIONS } from "./journey.js?v=cognition-v2";
 import { PLOTS, SPACE_POS, address } from "./layout.js";
-import { houseStage, villageCounts } from "./settlement.js?v=cognition-v1";
+import { houseStage, villageCounts } from "./settlement.js?v=cognition-v2";
 const $ = (s) => document.querySelector(s),
   esc = (s) =>
     String(s ?? "").replace(
@@ -1461,7 +1461,7 @@ async function init() {
     entryUI.resume();scheduleDemoResponse();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "cognition-v1-20261009",
+      build: "cognition-v2-20261009",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),

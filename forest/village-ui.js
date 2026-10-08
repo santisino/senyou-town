@@ -1,6 +1,6 @@
-import { activeVillage, isPublic, joined, mayManage, villageSummary, PUBLIC_VILLAGE, shareLink } from './villages.js?v=cognition-v1';
+import { activeVillage, isPublic, joined, mayManage, villageSummary, PUBLIC_VILLAGE, shareLink } from './villages.js?v=cognition-v2';
 import { FIELDS as BASE_FIELDS, SPACES } from './data.js?v=village-v4';
-import { EXTRA_FIELDS } from './connect-data.js?v=cognition-v1';
+import { EXTRA_FIELDS } from './connect-data.js?v=cognition-v2';
 import { encodeVillage } from './config.js';
 import qrcode from '../vendor/qrcode.mjs';
 

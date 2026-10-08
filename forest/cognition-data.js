@@ -92,7 +92,7 @@ export function cognitionAction(original,a){const s=clone(original);s.network.co
   c.lab={partner:partner.id,partnerReport,simulated:!!partner.simulated,step:1,prescription:'information',checks:[]};
   c.lab.prescription=['pace','voice','pace','information'][labComparison(s).max];
  }
- else if(a.type==='cog:lab-step'){if(!c.lab)fail('先选择伙伴');const step=Number(a.step);if(![1,2,3].includes(step)||step>c.lab.step+1)fail('请依次对照、混合，再留下协作处方。');c.lab.step=step;if(step===3)c.seen.lab=true;}
+ else if(a.type==='cog:lab-step'){if(!c.lab)fail('先选择伙伴');const step=Number(a.step);if(![1,2,3].includes(step)||step>c.lab.step+1)fail('请依次对照、混合，再留下协作处方。');c.lab.step=step;if(step===2&&!c.lab.focus)c.lab.focus=REACTIONS.find(x=>x[1]===labComparison(s).dimensions[labComparison(s).max].type)[0];if(step===3)c.seen.lab=true;}
  else if(a.type==='cog:lab-focus'){if(!c.lab||c.lab.step<2)fail('先让配方进入反应皿');if(!REACTIONS.some(x=>x[0]===a.id))fail('反应示例不存在');c.lab.focus=a.id;c.lab.illustration=!!a.illustration;}
  else if(a.type==='cog:lab-prescription'){if(!c.lab||c.lab.step<3)fail('先完成实验');if(!PRESCRIPTIONS.some(x=>x[0]===a.id))fail('处方不存在');if(c.lab.prescription!==a.id){c.lab.prescription=a.id;c.lab.checks=[];}}
  else if(a.type==='cog:lab-check'){if(!c.lab||c.lab.step<3)fail('先留下协作处方');const content=text(a.text);if(!content)fail('写下这次发生了什么，不用证明关系已经改善。');if(!['helpful','adjust','not-yet'].includes(a.outcome))fail('请选择这次感受');if(c.lab.checks.at(-1)?.text===content&&c.lab.checks.at(-1)?.outcome===a.outcome)return s;if(c.lab.checks.length>=5)fail('本轮已记录五次，可以回看或换一个协作尝试。');c.lab.checks.push({text:content,outcome:a.outcome,at:Date.now()});}

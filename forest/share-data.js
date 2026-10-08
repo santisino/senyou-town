@@ -1,5 +1,5 @@
 import { PHOTO_SPOTS } from './space-guides.js?v=neighbors-v1';
-import { shareLink } from './villages.js?v=cognition-v1';
+import { shareLink } from './villages.js?v=cognition-v2';
 // Export only an explicit, public-field whitelist. Never pass raw reports/notes to the compositor.
 export const CARD_TYPES = {
   house: { name: '小屋明信片', title: '在森林里，安了一个家。', fields: ['headline', 'traits'] },
