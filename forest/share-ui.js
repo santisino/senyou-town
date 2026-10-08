@@ -1,5 +1,5 @@
-import { CARD_TYPES, LABELS, cardData, partners, makePairCard, respondCard, pairCardValid, canExportPair } from './share-data.js?v=villages-v1';
-import { renderCard } from './share-render.js?v=villages-v1';
+import { CARD_TYPES, LABELS, cardData, partners, makePairCard, respondCard, pairCardValid, canExportPair } from './share-data.js?v=connections-v2';
+import { renderCard } from './share-render.js?v=connections-v2';
 
 export function createSharing({ getState, getWorld, panel, button, esc, saveState, toast, commit }) {
   let session = null, imageURL = null, generation = 0;

@@ -2,8 +2,9 @@ import { seedResidents, blankResident, FIELDS, SHOP } from "./data.js?v=village-
 import { journey, STATIONS } from "./journey.js?v=village-v4";
 import { claimPlot, advanceCohort, settleSample } from "./settlement.js";
 import { QUESTIONS } from "./interview.js?v=neighbors-v1";
-import { ensureNetwork, checkpoint, netAction, joined, isPublic, activeVillage } from './villages.js?v=villages-v1';
-import { lessonAction } from './lesson-data.js?v=classroom-v1';
+import { ensureNetwork, checkpoint, netAction, joined, isPublic, activeVillage } from './villages.js?v=connections-v2';
+import { lessonAction } from './lesson-data.js?v=connections-v2';
+import { connectAction, EXTRA_FIELDS } from './connect-data.js?v=connections-v2';
 export const STORAGE = "senyou-forest-village-v2";
 const clone = (x) => structuredClone(x);
 const id = () =>
@@ -65,9 +66,9 @@ export function visible(s, rid, viewer = s.actor) {
   return {
     ...r,
     profile: Object.fromEntries(
-      FIELDS.map(([k]) => [
+      [...FIELDS,...EXTRA_FIELDS].map(([k]) => [
         k,
-        viewer === rid || (joined(s,viewer) && joined(s,rid) && r.confirmed && s.stage==="open" && r.public[k]) ? r.profile[k] : "",
+        viewer === rid || (joined(s,viewer) && joined(s,rid) && r.confirmed && s.stage==="open" && r.public[k]) ? (r.profile[k]||'') : "",
       ]),
     ),
     notes: viewer === rid ? r.notes : {},
@@ -105,6 +106,7 @@ export function matches(s, r, query = "", filter = "all") {
 export function transact(original, action) {
   if(action.type.startsWith('net:'))return netAction(original,action);
   const initial=ensureNetwork(clone(original));
+  if(action.type.startsWith('social:'))return checkpoint(connectAction(initial,action));
   if(action.type.startsWith('class:'))return checkpoint(lessonAction(initial,action));
   if(['meetMayor','buildHome','confirm','finishStation','buy','sendGift','request','publicResult'].includes(action.type)) {
     if(!joined(initial))fail('先到村口找村长，确认加入本村及公开范围。');
@@ -227,6 +229,8 @@ function transactCore(original, action) {
       break;
     case "stage":
       s.stage = a.open ? "open" : "preparing";
+      activeVillage(s).lesson ||= {version:1,phase:0,pairs:[],goals:{},screenConsent:{},events:[],messages:[]};
+      activeVillage(s).lesson.phase=a.open?Math.max(1,activeVillage(s).lesson.phase):0;
       break;
     case "village":
       for (const k of [

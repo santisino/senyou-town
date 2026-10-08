@@ -1,4 +1,5 @@
-import { activeVillage, joined, mayManage } from './villages.js?v=villages-v1';
+import { activeVillage, joined, mayManage } from './villages.js?v=connections-v2';
+import { matchList } from './connect-data.js?v=connections-v2';
 
 export const PHASES = ['准备入村', '发现伙伴', '协作任务', '共同复盘'];
 export const SCENARIO = {
@@ -18,7 +19,7 @@ const clean=(v,n=600)=>String(v??'').trim().slice(0,n);
 const fail=m=>{throw new Error(m);};
 const person=(s,id=s.actor)=>s.residents.find(r=>r.id===id);
 const initial=()=>({version:1,phase:0,pairs:[],goals:{},screenConsent:{},events:[],messages:[]});
-export const lesson=s=>activeVillage(s).lesson||initial();
+export const lesson=s=>{const l=activeVillage(s).lesson||initial();return s.stage==='open'&&l.phase===0?{...l,phase:1}:l;};
 export const livePair=(s,id=s.actor)=>lesson(s).pairs.find(p=>p.members.includes(id)&&!['declined','withdrawn'].includes(p.status));
 const opt=id=>SCENARIO.choices.find(x=>x.id===id);
 export function cardProfile(s,id,viewer=s.actor) {
@@ -27,22 +28,8 @@ export function cardProfile(s,id,viewer=s.actor) {
   if(id!==viewer&&(!r.confirmed||s.stage!=='open'))return null;
   return {...r,profile:Object.fromEntries(Object.entries(r.profile).map(([k,v])=>[k,id===viewer||r.public[k]?v:''])),interview:{},notes:{}};
 }
-const tokens=s=>clean(s).split(/[、，,\s；;。]+/).filter(t=>t.length>1&&!/暂时|公开|没有/.test(t));
-const TOPICS=['摄影','拍照','桌游','读书','播客','咖啡','散步','植物','烘焙','骑行','做饭','手作','电影','学习','设计'];
 export function recommendations(s) {
-  const own=cardProfile(s,s.actor);if(!own||s.stage!=='open')return [];
-  const p=own.profile;
-  return s.residents.filter(r=>r.id!==s.actor).map(r=>{
-    const q=cardProfile(s,r.id);if(!q)return null;
-    const reasons=[];let weight=0;
-    const interests=tokens(p.interests).filter(t=>q.profile.interests.includes(t));
-    if(interests.length){reasons.push(`都喜欢${interests.slice(0,2).join('、')}`);weight+=3;}
-    const wishes=TOPICS.filter(t=>p.wish.includes(t)&&q.profile.wish.includes(t));
-    if(wishes.length){reasons.unshift(`都想围绕${wishes[0]}做点什么`);weight+=4;}
-    const learning=TOPICS.filter(t=>p.learning.includes(t)&&q.profile.learning.includes(t));
-    if(learning.length){reasons.push(`都在探索${learning[0]}`);weight+=2;}
-    return reasons.length?{id:r.id,name:r.name,reasons,weight}:null;
-  }).filter(Boolean).sort((a,b)=>b.weight-a.weight).slice(0,3);
+  return matchList(s).slice(0,3).map(x=>({...x,reasons:x.reasons.map(r=>r.text),weight:x.reasons.length}));
 }
 export function pairView(s,id) {
   const p=lesson(s).pairs.find(q=>q.id===id);
@@ -92,6 +79,7 @@ export function lessonAction(s,a) {
   if(v.archived)fail('活动已归档，课堂记录保留，但不能继续修改。');
   if(!admin&&!joined(s))fail('先找村长确认加入这座村。');
   v.lesson ||= initial();const l=v.lesson;
+  if(s.stage==='open'&&l.phase===0)l.phase=1;
   const event=(type,info={})=>l.events.push({type,actor:s.actor,at:Date.now(),...info});
   if(a.type==='class:admin:phase') {
     if(!Number.isInteger(a.phase)||a.phase<0||a.phase>3)fail('未知课堂阶段。');
@@ -117,7 +105,7 @@ export function lessonAction(s,a) {
       lessonAction(s,{type:'class:agreement',id:p.id,text:'先用 10 分钟列出必须检查的风险，再限定试用范围；由一人记录结论，遇到异常一起决定是否暂停。'});
       for(const id of [a,b]){s.actor=id;lessonAction(s,{type:'class:sign',id:p.id});}
     }}finally{s.actor=original;}
-    l.phase=3;event('sample-results',{groups:candidates.length,simulated:true});return s;
+    event('sample-results',{groups:candidates.length,simulated:true});return s;
   }
   if(a.type==='class:goal') {l.goals[s.actor]=clean(a.value,180);return s;}
   if(a.type==='class:screen') {l.screenConsent[s.actor]=a.allow===true;return s;}
@@ -136,6 +124,8 @@ export function lessonAction(s,a) {
   if(a.type==='class:practice') {
     const entry=journal(s).find(e=>e.id===a.id);if(!entry)fail('只能记录自己的课后实践。');
     const text=clean(a.text,400);if(!text)fail('写一个实际尝试或观察，不需要证明自己变好了。');
+    entry.practices ||= entry.practice?[entry.practice]:[];
+    if(entry.practices.at(-1)?.text!==text)entry.practices.push({text,at:Date.now()});
     entry.practice={text,at:Date.now()};return s;
   }
   if(a.type==='class:simulate') {

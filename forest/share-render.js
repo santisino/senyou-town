@@ -1,6 +1,6 @@
 import * as T from 'three';
 import qrcode from '../vendor/qrcode.mjs';
-import { CARD_TYPES, LABELS } from './share-data.js?v=villages-v1';
+import { CARD_TYPES, LABELS } from './share-data.js?v=connections-v2';
 
 export const PUBLIC_DEMO_URL = 'https://santisino.github.io/senyou-town/forest/';
 const INK = '#304b3c', MUTED = '#6d796b', PAPER = '#fcf6e9', ACCENT = '#b96543';

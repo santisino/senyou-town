@@ -1,9 +1,11 @@
-import { activeVillage, isPublic, joined, mayManage, villageSummary, PUBLIC_VILLAGE, shareLink } from './villages.js?v=villages-v1';
-import { FIELDS, SPACES } from './data.js?v=village-v4';
+import { activeVillage, isPublic, joined, mayManage, villageSummary, PUBLIC_VILLAGE, shareLink } from './villages.js?v=connections-v2';
+import { FIELDS as BASE_FIELDS, SPACES } from './data.js?v=village-v4';
+import { EXTRA_FIELDS } from './connect-data.js?v=connections-v2';
 import { encodeVillage } from './config.js';
 import qrcode from '../vendor/qrcode.mjs';
 
 const TABS=['总览','村庄设置','居民与加入','活动与公共空间','邀请与分享','治理与归档'];
+const FIELDS=[...BASE_FIELDS,...EXTRA_FIELDS];
 const ROLE={resident:'普通森友',activity:'活动村长',public:'公共村长',donglai:'东来 · 双村村长'};
 export function createVillageUI({getState,commit,panel,button,esc,toast,close,travel,meetMayor,goInviter}) {
   const $=q=>document.querySelector(q);

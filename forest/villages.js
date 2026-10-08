@@ -5,12 +5,12 @@ import { STATIONS } from './journey.js?v=village-v4';
 // projection; it is checkpointed before every switch. No cross-device authority is claimed.
 export const PUBLIC_VILLAGE = 'ant-public';
 export const ACTIVITY_VILLAGE = 'baima-session';
-const PERSONAL = ['id','name','appearance','profile','interview','decor','signature','wishMode','capacity','simulated'];
-const MEMBER = ['group','public','confirmed','reviewed','arrived','plot','built','journey','notes','bookmarked','controlled','membership','origin','suspended'];
+const PERSONAL = ['id','name','appearance','profile','interview','decor','signature','wishMode','capacity','simulated','social'];
+const MEMBER = ['group','public','confirmed','reviewed','arrived','plot','built','journey','notes','bookmarked','controlled','membership','origin','suspended','socialPrivacy'];
 const RUNTIME = ['experience','openingStep','welcomeSeen','wallets','items','gifts','requests','friends','connections','ledger','publicResults','shareCards'];
 const copy = x => structuredClone(x);
 const pick = (o, keys) => Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, copy(o[k])]));
-const mask = v => Object.fromEntries(FIELDS.map(([k]) => [k, !!v?.[k]]));
+const mask = v => Object.fromEntries([...FIELDS.map(([k])=>k),'workBackground','wantToLearn','challenges'].map(k => [k, !!v?.[k]]));
 const fail = m => { throw new Error(m); };
 const uid = () => crypto.randomUUID();
 export const activeVillage = s => s.network.villages[s.network.active];
@@ -138,6 +138,8 @@ export function netAction(original,a) {
     if(v.kind==='public')fail('公共村持续开放，不使用活动开场开关。');
     if(v.archived)fail('先恢复活动，再调整阶段。');
     s.stage=a.open?'open':'preparing';record(v,'stage',{value:s.stage});
+    v.lesson ||= {version:1,phase:0,pairs:[],goals:{},screenConsent:{},events:[],messages:[]};
+    v.lesson.phase=a.open?Math.max(1,v.lesson.phase):0;
   } else if(a.type==='net:admin:create') {
     if(!['donglai','activity'].includes(n.manager))fail('只有活动村长演示身份可以创建活动村。');
     const name=String(a.name||'').trim().slice(0,30);if(!name)fail('给新活动村起个名字。');

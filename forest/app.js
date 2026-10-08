@@ -1,11 +1,12 @@
 import { ForestWorld } from "./world.js?v=edge-pan-v1";
 import { QUESTIONS, draftProfile } from "./interview.js?v=neighbors-v1";
 import { GUIDES, PHOTO_SPOTS, photoMap, gardenCheck } from "./space-guides.js?v=neighbors-v1";
-import { createSharing } from "./share-ui.js?v=villages-v1";
-import { createVillageUI } from './village-ui.js?v=classroom-v1';
-import { createLessonUI } from './lesson-ui.js?v=classroom-v1';
-import { lesson,livePair,PHASES } from './lesson-data.js?v=classroom-v1';
-import { activeVillage, isPublic, joined, applyArrival, checkpoint } from './villages.js?v=villages-v1';
+import { createSharing } from "./share-ui.js?v=connections-v2";
+import { createVillageUI } from './village-ui.js?v=connections-v2';
+import { createLessonUI } from './lesson-ui.js?v=connections-v2';
+import { lesson,livePair,PHASES } from './lesson-data.js?v=connections-v2';
+import { EXTRA_FIELDS } from './connect-data.js?v=connections-v2';
+import { activeVillage, isPublic, joined, applyArrival, checkpoint } from './villages.js?v=connections-v2';
 import { FIELDS, SPACES, SHOP, NOTE } from "./data.js?v=village-v4";
 import {
   fresh,
@@ -17,7 +18,7 @@ import {
   matches,
   transact,
   ready,
-} from "./state.js?v=classroom-v1";
+} from "./state.js?v=connections-v2";
 import qrcode from "../vendor/qrcode.mjs";
 import { encodeVillage, decodeVillage } from "./config.js";
 import { journey, nextStation, STATIONS } from "./journey.js?v=village-v4";
@@ -80,7 +81,7 @@ function toast(text) {
 function commit(a) {
   try {
     const next = transact(state, a);
-    const profileOnly = ['interview','note'].includes(a.type) || (a.type.startsWith('class:')&&!a.type.startsWith('class:admin:')) || (a.type === "profile" && resident(next).confirmed === me().confirmed);
+    const profileOnly = ['interview','note'].includes(a.type) || a.type.startsWith('social:') || (a.type.startsWith('class:')&&!a.type.startsWith('class:admin:')) || (a.type === "profile" && resident(next).confirmed === me().confirmed);
     persist(next);
     state = next;
     world?.setState(state, { profileOnly });
@@ -185,6 +186,7 @@ function hud() {
     $('#mission').insertAdjacentHTML('beforeend',`<p class="lesson-world-hint"><strong>百蚂合拍局 · ${PHASES[phase]}</strong><br>${hint}${button(phase===1&&!task?'沿路去公告栏':'沿路去教室','space',`data-key="${phase===1&&!task?'park':'class'}"`)}</p>`);
   }
   const arrival=state.network.arrival;
+  if(isHome&&homeId===state.actor&&r.confirmed&&!r.social?.identityConfirmed)$('#mission').insertAdjacentHTML('beforeend',`<p class="lesson-world-hint">册子里还留着一张属于你的村民卡。选一个喜欢的森林称号，把自己的介绍带走。${button('走到册子旁领取','book')}</p>`);
   if(arrival?.kind==='share')$('#mission').insertAdjacentHTML('beforeend',`<div class="arrival-note">${arrival.sample?'你收到了一份分享。本轮用小林的虚构小屋示范后续体验。':`${esc(name(arrival.who))}的${({house:'小屋',profile:'个人名片',wish:'心愿',pair:'同行',work:'共创'})[arrival.content]}分享带你来到这里。`}<br>${button(joined(state)&&r.confirmed?(arrival.content==='work'?'走到共创工坊':'沿路去邀请人家里'):'去村口找村长','follow-share')}</div>`);
   $("#navigation").innerHTML=(isHome?button("走到门口出门","exit-home"):button(world?.mode==="overview"?"回到脚下":"俯瞰森林","map"))+button("","interact",'id="near-action" hidden',"primary");
   const gifts=state.gifts.filter(g=>g.to===state.actor&&g.status==='pending').length;
@@ -271,7 +273,7 @@ function edit(key = stationKey) {
   } else body+=spec.fields.map(field).join("");
   if(key==="wish") body+=`<label class="field">想怎样被回应<select id="wish-mode"><option value="intent" ${me().wishMode==="intent"?"selected":""}>先表达一个念头</option><option value="recruit" ${me().wishMode==="recruit"?"selected":""}>邀请两位伙伴，需要我确认</option></select></label>`;
   const shareTools = me().confirmed ? key==='wish' ? button("做一张心愿邀请卡","share-open",'data-kind="wish"') : key==='table' ? button("制作同行明信片","share-pairs") : '' : '';
-  panel(spec.title,"正在布置这件物品 · 草稿自动保存",body,button("先放一放，继续逛","close")+button(spec.result,"finish-station",'data-key="'+key+'"',"primary")+shareTools,"station-panel");
+  panel(spec.title,"正在布置这件物品 · 草稿自动保存",body,button("先放一放，继续逛","close")+button(spec.result,"finish-station",'data-key="'+key+'"',"primary")+shareTools+(me().confirmed?button("我的村民卡","social-identity")+button("补充连接线索与偏好","social-edit"):""),"station-panel");
 }
 function interview(group=interviewGroup,index=interviewIndex) {
   if(homeId!==state.actor || !QUESTIONS[group])return;
@@ -324,7 +326,7 @@ function leaveHome() {
 }
 function summary(r, owner = false) {
   const p = owner ? r.profile : profile(r.id).profile;
-  return `${person(r)}<p class="quote">${esc(p.headline || "这里还有一些故事，等待主人慢慢分享。")}</p>${tags(p.traits || "")}<div class="columns"><div>${section("我喜欢的生活", p.interests)}${section("一个小故事", p.story)}${section("最近在探索", p.learning)}</div><div>${section("我愿意搭把手", p.help)}${section("和我一起做事", p.collaboration)}${section("最近的心愿", p.wish)}</div></div>`;
+  return `${person(r)}<p class="quote">${esc(p.headline || "这里还有一些故事，等待主人慢慢分享。")}</p>${tags(p.traits || "")}<div class="columns"><div>${section("我喜欢的生活", p.interests)}${section("一个小故事", p.story)}${section("最近在探索", p.learning)}</div><div>${section("我愿意搭把手", p.help)}${section("和我一起做事", p.collaboration)}${EXTRA_FIELDS.map(([k,t])=>section(t,p[k])).join("")}${section("最近的心愿", p.wish)}</div></div>`;
 }
 function visit(id) {
   if (!canVisit(state, id)) {
@@ -403,7 +405,7 @@ function book(chapter = 0) {
   if (bookChapter === 1)
     body = `<div>${section("我喜欢的生活", p.interests)}${section("这件事背后的小故事", p.story)}</div><div>${section("最近在探索", p.learning)}<p class="muted">不必擅长，喜欢本身就值得被看见。</p></div>`;
   if (bookChapter === 2)
-    body = `<div>${section("我愿意搭把手", p.help)}</div><div>${section("和我一起做事，可以这样", p.collaboration)}<p class="muted">具体的相处建议，比一个人格标签更有帮助。</p></div>`;
+    body = `<div>${section("我愿意搭把手", p.help)}</div><div>${section("和我一起做事，可以这样", p.collaboration)}${EXTRA_FIELDS.map(([k,t])=>section(t,p[k])).join("")}<p class="muted">具体的相处建议，比一个人格标签更有帮助。</p></div>`;
   if (bookChapter === 3)
     body = `<div>${section("最近，想和谁一起", p.wish)}${!p.wish ? "<p>主人还没有公开这部分内容。</p>" : ""}</div><div><p>如果这个念头让你心动，可以去看看窗边的心愿瓶。</p><div class="actions">${button("看看心愿瓶", "object", 'data-key="wish"', "primary")}</div><p class="muted" style="margin-top:24px">内容由主人表达并确认。未公开资料不会出现在访客册子里。</p></div>`;
   panel(
@@ -411,7 +413,7 @@ function book(chapter = 0) {
     `${r.name}把想让你知道的事，慢慢写在这里。`,
     `<nav class="chapter">${chapters.map((t, i) => button(`${i + 1}. ${t}`, "chapter", `data-index="${i}"`, i === bookChapter ? "primary" : "")).join("")}</nav><div class="book-spread">${body}</div>`,
     button("合上册子，继续逛", "close") +
-      (homeId === state.actor ? button("做我的森林名片", "share-open", 'data-kind="profile"') : "") +
+      (homeId === state.actor ? button("领取我的村民卡", "social-identity") + button("补充连接线索与偏好", "social-edit") + button("看我的懂我卡", "social-card", `data-id="${state.actor}"`) : button("看看懂我卡", "learn-card", `data-id="${homeId}"`)) +
       (homeId === state.actor ? button("合上册子，去门牌修改", "object", 'data-key="door"') : "") +
       button(
         bookChapter === 3 ? "回到第一页" : "下一章",
@@ -454,7 +456,7 @@ function object(key) {
       "来会客桌坐坐",
       "放下判断，聊聊怎样相处更舒服。",
       section("我愿意搭把手", p.help) +
-        section("和我一起做事", p.collaboration),
+        section("和我一起做事", p.collaboration)+EXTRA_FIELDS.map(([k,t])=>section(t,p[k])).join(""),
     ],
     wish: [
       "窗边的心愿瓶",
@@ -560,7 +562,7 @@ function inbox() {
   panel(
     "我的礼物信箱",
     `${me().name} · 本地演示消息，不会发送到真实账号`,
-    body + sharing.inboxHTML(),
+    body + sharing.inboxHTML() + (lessonUI?.connect.inboxHTML()||''),
   );
 }
 function signature() {
@@ -973,7 +975,7 @@ document.addEventListener("click", async (e) => {
       case "confirm":
         if (commit({ type: "confirm" })) {
           world.refreshPins();close();hud();
-          toast("欢迎牌挂好了！可以到屋里的留影相机拍张明信片，再迎接邻居。");
+          toast("欢迎牌挂好了！再点桌上的册子领取村民卡，或到留影相机拍一张明信片。");
         }
         break;
       case "own":
@@ -1073,12 +1075,7 @@ document.addEventListener("click", async (e) => {
         if (commit({ type: "requestReply", id: d.id, reply: d.reply })) inbox();
         break;
       case "pair":
-        panel(
-          "如果我们一起做这件事",
-          "示例合拍建议 · 不是测评结论，也没有匹配分数",
-          `<p>以下仅是演示如何把相处建议放进一次具体的合作，不读取真实 DISC 数据。</p><div class="notice">先对齐：这次只是轻松练习，不比较谁拍得好。<br>各留一点空间：先各自拍三张，再交换喜欢的一张。<br>遇到不同意见：问问对方为什么这样选，再提出建议。</div><small>正式的双人报告需要双方授权。是否加入，仍由你自己判断。</small>`,
-          button("回心愿瓶再决定", "object", 'data-key="wish"', "primary"),
-        );
+        lessonUI.connect.preview(homeId);
         break;
       case "connect":
         if (commit({ type: "connect", to: d.id })) {
@@ -1346,6 +1343,7 @@ $("#presenter-entry").onclick = () => {
 };
 $('#village-entry').onclick=()=>villageUI?.picker();
 $('#mayor-entry').onclick=()=>villageUI?.admin();
+$('#teacher-entry').onclick=()=>lessonUI?.teacher(0);
 const stick = $("#joystick");
 function joy(e) {
   const r = stick.getBoundingClientRect(),
@@ -1400,14 +1398,14 @@ async function init() {
     checkpoint(state);
     villageUI=createVillageUI({getState:()=>state,commit,panel,button,esc,toast,close,travel:villageTravel,meetMayor:mayor,goInviter:followShare});
     sharing = createSharing({getState:()=>state,getWorld:()=>world,panel,button,esc,saveState,toast,commit});
-    lessonUI=createLessonUI({getState:()=>state,commit,panel,button,esc,toast,close,walkSpace,walkHome,travel:villageTravel});
+    lessonUI=createLessonUI({getState:()=>state,getWorld:()=>world,commit,panel,button,esc,toast,close,walkSpace,walkHome,travel:villageTravel});
     world.setState(state);
     world.town();
     $("#loading").remove();
     hud();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "classroom-v1-20261005",
+      build: "connections-v2-20261007",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),
