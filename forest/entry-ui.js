@@ -1,4 +1,4 @@
-import { entry } from './entry-data.js?v=roles-v1';
+import { entry } from './entry-data.js?v=roles-v2';
 
 export function createEntryUI({getState,commit,getWorld,close,openWorkspace,hud,invited=false}) {
   const $=q=>document.querySelector(q);
@@ -6,7 +6,7 @@ export function createEntryUI({getState,commit,getWorld,close,openWorkspace,hud,
   function sync() {
     const e=entry(getState());document.body.dataset.experienceRole=e.role||'gate';
     document.body.dataset.experienceMode=e.mode;
-    $('#role-badge').textContent=e.mode==='preview'?'正在预览员工视角':e.role==='organizer'?'活动组织者':'员工体验';
+    $('#role-badge').textContent=e.mode==='preview'?'正在用参与者视角体验':e.role==='organizer'?'活动组织者':'员工体验';
     $('#preview-return').hidden=!e.preview;
     $('#role-switch').hidden=!!e.preview;
   }

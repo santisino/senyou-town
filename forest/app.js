@@ -2,10 +2,10 @@ import { ForestWorld } from "./world.js?v=edge-pan-v1";
 import { QUESTIONS, draftProfile } from "./interview.js?v=neighbors-v1";
 import { GUIDES, PHOTO_SPOTS, photoMap, gardenCheck } from "./space-guides.js?v=neighbors-v1";
 import { createSharing } from "./share-ui.js?v=connections-v2";
-import { createVillageUI } from './village-ui.js?v=roles-v1';
-import { createLessonUI } from './lesson-ui.js?v=roles-v1';
-import { entry, soloEmployee, nextDemoResponse } from './entry-data.js?v=roles-v1';
-import { createEntryUI } from './entry-ui.js?v=roles-v1';
+import { createVillageUI } from './village-ui.js?v=roles-v2';
+import { createLessonUI } from './lesson-ui.js?v=roles-v2';
+import { entry, soloEmployee, nextDemoResponse } from './entry-data.js?v=roles-v2';
+import { createEntryUI } from './entry-ui.js?v=roles-v2';
 import { lesson,livePair,PHASES } from './lesson-data.js?v=connections-v2';
 import { EXTRA_FIELDS } from './connect-data.js?v=connections-v2';
 import { activeVillage, isPublic, joined, applyArrival, checkpoint } from './villages.js?v=connections-v2';
@@ -20,7 +20,7 @@ import {
   matches,
   transact,
   ready,
-} from "./state.js?v=roles-v1";
+} from "./state.js?v=roles-v2";
 import qrcode from "../vendor/qrcode.mjs";
 import { encodeVillage, decodeVillage } from "./config.js";
 import { journey, nextStation, STATIONS } from "./journey.js?v=village-v4";
@@ -746,7 +746,7 @@ function presenterPanel() {
     '<div class="actions">'+button('演示 50 人班级容量','cohort-50')+button('运行检查','quality')+'</div>'+
     section('需要从头重新体验？','这会清除新版 Demo 的本地测试状态，包括已填写的介绍、礼物与活动记录。先保存需要保留的内容；切换角色本身不需要重置。')+
     button('从空宅地重新体验','reset','','danger'),
-    button('返回村长工作台','net-admin','','primary')+button('预览员工体验','entry-preview'),'wide');
+    button('返回村长工作台','net-admin','','primary')+button('我设置好了，用参与者视角体验','entry-preview'),'wide');
 }
 function village() {
   panel(
@@ -1446,7 +1446,7 @@ async function init() {
     entryUI.resume();scheduleDemoResponse();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "roles-v1-20261008",
+      build: "roles-v2-20261008",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),

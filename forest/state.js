@@ -5,7 +5,7 @@ import { QUESTIONS } from "./interview.js?v=neighbors-v1";
 import { ensureNetwork, checkpoint, netAction, joined, isPublic, activeVillage } from './villages.js?v=connections-v2';
 import { lessonAction } from './lesson-data.js?v=connections-v2';
 import { connectAction, EXTRA_FIELDS } from './connect-data.js?v=connections-v2';
-import { entryAction } from './entry-data.js?v=roles-v1';
+import { entryAction } from './entry-data.js?v=roles-v2';
 export const STORAGE = "senyou-forest-village-v2";
 const clone = (x) => structuredClone(x);
 const id = () =>

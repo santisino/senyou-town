@@ -43,7 +43,7 @@ export function entryAction(original,a,act) {
   }else if(a.type==='entry:gate') {
     restorePreview();s.entry={...s.entry,role:null};run({type:'net:role',role:'resident'});
   }else if(a.type==='entry:preview') {
-    if(s.entry.role!=='organizer')fail('请从村长工作台预览员工体验。');
+    if(s.entry.role!=='organizer')fail('请先从村长工作台进入参与者视角。');
     const back={actor:s.actor,village:s.network.active,manager:s.network.manager};
     switchActor(s.entry.employeeActor||'me');run({type:'net:role',role:'resident'});
     s.entry={...s.entry,role:'employee',mode:'preview',preview:back};

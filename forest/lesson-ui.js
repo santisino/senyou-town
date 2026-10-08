@@ -1,9 +1,9 @@
 import { lesson, PHASES, SCENARIO, livePair, pairView, review, recommendations, cardProfile, classSummary, shareData, shareApprovals, journal } from './lesson-data.js?v=connections-v2';
 import { activeVillage, mayManage, PUBLIC_VILLAGE, ACTIVITY_VILLAGE, joined } from './villages.js?v=connections-v2';
 import qrcode from '../vendor/qrcode.mjs';
-import { createConnectUI } from './connect-ui.js?v=roles-v1';
+import { createConnectUI } from './connect-ui.js?v=roles-v2';
 import { previewData } from './connect-data.js?v=connections-v2';
-import { soloEmployee, entry } from './entry-data.js?v=roles-v1';
+import { soloEmployee, entry } from './entry-data.js?v=roles-v2';
 
 export function createLessonUI(ctx) {
   const {getState:s,commit,panel,button,esc,toast,close,walkSpace,walkHome,travel}=ctx;
@@ -37,12 +37,12 @@ export function createLessonUI(ctx) {
     const l=lesson(s()),copy=phaseCopy[l.phase];
     const rail=`<ol class="lesson-rail">${PHASES.map((name,i)=>`<li class="${l.phase===i?'current':i<l.phase?'passed':''}"><span>${i+1}</span><strong>${name}</strong></li>`).join('')}</ol>`;
     let body='';
-    if(tab===0)body=`<h1>让一次协作，成为认识彼此的开始</h1><p class="lesson-subtitle">准备 → 发现伙伴 → 协作任务 → 共同复盘</p>${rail}<div class="lesson-stage-layout"><section class="lesson-current"><h2>${copy[0]}</h2><p>${copy[1]}</p><div class="actions">${l.phase<3?b(copy[2],'phase',`data-phase="${l.phase+1}"`,'primary'):b(copy[2],'screen','','primary')}${button('预览员工体验','entry-preview')}</div></section><aside class="lesson-tips"><h3>给班主任的话</h3><ol><li><strong>邀请大家先探索</strong><span>让每位同学找到自己的节奏。</span></li><li><strong>提醒本人确认公开范围</strong><span>不愿公开，也能完成个人表达。</span></li><li><strong>不展示隐藏资料</strong><span>复盘行为，不给人格或能力排名。</span></li></ol></aside></div>${progressTable()}`;
+    if(tab===0)body=`<h1>让一次协作，成为认识彼此的开始</h1><p class="lesson-subtitle">准备 → 发现伙伴 → 协作任务 → 共同复盘</p>${rail}<div class="lesson-stage-layout"><section class="lesson-current"><h2>${copy[0]}</h2><p>${copy[1]}</p><div class="actions">${l.phase<3?b(copy[2],'phase',`data-phase="${l.phase+1}"`,'primary'):b(copy[2],'screen','','primary')}${button('我设置好了，用参与者视角体验','entry-preview')}</div></section><aside class="lesson-tips"><h3>给班主任的话</h3><ol><li><strong>邀请大家先探索</strong><span>让每位同学找到自己的节奏。</span></li><li><strong>提醒本人确认公开范围</strong><span>不愿公开，也能完成个人表达。</span></li><li><strong>不展示隐藏资料</strong><span>复盘行为，不给人格或能力排名。</span></li></ol></aside></div>${progressTable()}`;
     if(tab===1)body=`<h1>看参与进度，不看私人答案</h1><p class="lesson-subtitle">提交选择只显示“进行中”；个人理由与反思不进入主持台。</p>${progressTable()}<div class="lesson-teacher-help"><h3>现场引导顺序</h3><ol><li>尚未完成表达：提醒回到自己的小屋，逐件探索。</li><li>尚未找到伙伴：去森友公告栏看看共同兴趣。</li><li>双方都已作答：请先互相解释理由，再形成约定。</li></ol></div>`;
     if(tab===2)body=screenBody()+connect.insightsHTML();
     if(tab===0)body+=`<section class="social-section"><h2>课堂控制 · 串门与教学统一推进</h2><div class="actions">${PHASES.map((t,i)=>b(`${i+1}. ${t}`,'phase',`data-phase="${i}"`,l.phase===i?'primary':'')).join('')}</div><p>准备阶段不可串门；发现伙伴后可以邀请；发布任务后可以作答；复盘阶段保留查看与回顾，新一轮需单独重置。</p><h3>45 分钟引导稿 / 紧凑版 30 分钟</h3><ol><li>5 分钟 / 3 分钟：找村长、完成表达，说明公开范围自选。</li><li>15 分钟 / 8 分钟：看村民卡、找连接点，邀请一位伙伴。</li><li>20 分钟 / 15 分钟：独立选择、解释理由、写下共同约定。</li><li>5 分钟 / 4 分钟：看班级地图与观察，留下课后实践问题。</li></ol><p>这是主持参考节奏，不是倒计时自动切换。尚未完成者继续表达；先完成者可完善村民卡，不替任何人作答。</p>${button('查看班级合拍地图','social-graph')}${b('查看班级协同观察','tab','data-tab="2"')}</section>`;
     if(tab===1)body+=`<section class="social-section"><h2>专业测评状态与个人表达分开看</h2><p>下面仅为本人自报或明确示例，尚未接入测评系统，不能作为专业测评完成率。</p>${s().residents.filter(r=>r.membership==='joined').map(r=>`<p>${esc(r.name)}：${({'not-started':'尚未开始',sample:'体验示例报告','self-reported':'本人自报已完成，待接口核验',skip:'选择不使用报告'})[r.social?.assessment]||'未自报'}</p>`).join('')}</section>`;
-    if(tab===3)body=`<section class="demo-start"><h1>可选：准备虚构班级</h1><p>这些按钮只为展示准备样本，不是参与者的操作。不会替你填写或确认个人说明书，也不覆盖已接管居民与已有任务。</p>${b('准备样本并开放发现伙伴','demo-ready','','primary')}<p>准备后，可以在工作台预览员工体验；活动阶段仍由你在「活动主持」中推进。</p>${button('预览员工体验','entry-preview')}<h3>想看一份示例活动成果？</h3>${b('生成空闲示例组的课堂结果','sample')}${button('查看班级合拍地图','social-graph')}<p>生成结果只补充空闲虚构组合；明确标注示例，不代表真实班级数据。</p>${b('开始新一轮课堂','reset-check')}</section>`;
+    if(tab===3)body=`<section class="demo-start"><h1>可选：准备虚构班级</h1><p>这些按钮只为展示准备样本，不是参与者的操作。不会替你填写或确认个人说明书，也不覆盖已接管居民与已有任务。</p>${b('准备样本并开放发现伙伴','demo-ready','','primary')}<p>准备后，可以点「我设置好了，用参与者视角体验」进入森林；活动阶段仍由你在「活动主持」中推进。</p>${button('我设置好了，用参与者视角体验','entry-preview')}<h3>想看一份示例活动成果？</h3>${b('生成空闲示例组的课堂结果','sample')}${button('查看班级合拍地图','social-graph')}<p>生成结果只补充空闲虚构组合；明确标注示例，不代表真实班级数据。</p>${b('开始新一轮课堂','reset-check')}</section>`;
     if(ctx.hostWorkspace)ctx.hostWorkspace(body+disclaimer,tab);
     else show('活动主持','',body+disclaimer,'','lesson-console');
   }
@@ -103,7 +103,7 @@ export function createLessonUI(ctx) {
     show('一次协作，一点新认识',soloEmployee(s())?'你只表达自己的想法；虚构搭档的示例回应会在这里出现。':'双方各自操作；当前 Demo 不跨设备同步。',body,foot+b('回到教室','classroom'));
     $('#panel-root').dataset.pair=id;
   }
-  const simulate=(id,step,label)=>soloEmployee(s())?`<div class="sample-response"><strong>${esc(label.replace('模拟搭档','示例搭档将'))}</strong>这是虚构邻居的自动示例回应，不需要你替对方操作。${step==='share'?'正式参与者须分别同意，确认约定不等于同意公开。':''}</div>`:entry(s()).mode==='preview'?'<p class="sample-response">这是员工预览。搭档回应不会自动发生；可返回工作台推进活动或准备示例。</p>':entry(s()).role==='employee'?'<p class="sample-response">等待搭档回应。本机 Demo 不与其他设备同步；此处不提供替对方作答的按钮。</p>':`<div class="lesson-simulation"><small>演示专用 · 对方是虚构居民</small>${b(label,'simulate',`data-id="${id}" data-step="${step}"`)}</div>`;
+  const simulate=(id,step,label)=>soloEmployee(s())?`<div class="sample-response"><strong>${esc(label.replace('模拟搭档','示例搭档将'))}</strong>这是虚构邻居的自动示例回应，不需要你替对方操作。${step==='share'?'正式参与者须分别同意，确认约定不等于同意公开。':''}</div>`:entry(s()).mode==='preview'?'<p class="sample-response">当前是参与者视角体验。搭档回应不会自动发生；可返回工作台推进活动或准备示例。</p>':entry(s()).role==='employee'?'<p class="sample-response">等待搭档回应。本机 Demo 不与其他设备同步；此处不提供替对方作答的按钮。</p>':`<div class="lesson-simulation"><small>演示专用 · 对方是虚构居民</small>${b(label,'simulate',`data-id="${id}" data-step="${step}"`)}</div>`;
   async function poster(id) {
     const data=shareData(s(),id);if(!data){toast('双方需确认约定，并授权当前这版内容。');return;}
     const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=1440;const c=canvas.getContext('2d');

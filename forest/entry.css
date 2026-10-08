@@ -43,6 +43,9 @@ header #role-switch,header #preview-return{font-size:12px;padding:8px 12px}
 .workspace-actions span{font-size:13px;line-height:1.75;font-weight:400;color:#737d68}
 .workspace-secondary{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:24px 0}
 .workspace-secondary small{flex-basis:100%}
+.workspace-secondary button{max-width:100%;min-height:44px;white-space:normal;line-height:1.6}
+.mayor-identity button[data-action="entry-preview"]{white-space:normal;line-height:1.6}
+.lesson-current .actions{flex-wrap:wrap}
 .workspace-tools summary{cursor:pointer;font-size:14px;color:#65765b;min-height:44px;padding:12px 0}
 .workspace-tools[open]{border-top:1px solid #d5dccb;padding-top:8px}
 .workspace-mode-exit{display:flex;gap:10px;align-items:center;margin-bottom:18px}
@@ -73,3 +76,7 @@ body[data-experience-mode="preview"] header{z-index:24}
   body[data-experience-mode="preview"] #mission{top:106px}
 }
 @media(max-height:650px){#role-root{place-items:start center}.role-welcome{margin:auto 0;padding-top:24px;padding-bottom:20px}}
+@media(max-width:650px){
+  .mayor-sidebar{grid-template-columns:minmax(0,1fr) minmax(0,150px)}
+  .mayor-identity button[data-action="entry-preview"]{display:block;font-size:12px;padding:8px 6px;min-height:44px;width:100%;text-align:right}
+}
