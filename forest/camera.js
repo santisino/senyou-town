@@ -79,7 +79,7 @@ export class ForestCamera {
     c.minDistance=home?2.5:3.2;c.maxDistance=home?65:500;c.maxTargetRadius=home?16:140;
     c.cursor.set(0,home?1:0.9,0);
     this.follow=!home&&!overview;
-    const target=home?new T.Vector3(0,1,0):overview?new T.Vector3(0,.9,0):w.pos.clone().add(new T.Vector3(0,.9,0));
+    const target=home?new T.Vector3(w.studyOpen?7.1:0,1,0):overview?new T.Vector3(0,.9,0):w.pos.clone().add(new T.Vector3(0,.9,0));
     let offset;
     if(overview) {
       const distance=61/Math.tan(T.MathUtils.degToRad(w.camera.fov/2))/Math.min(1,w.camera.aspect)*1.1;

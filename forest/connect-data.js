@@ -1,4 +1,4 @@
-import { activeVillage, joined, mayManage } from './villages.js?v=connections-v2';
+import { activeVillage, joined, mayManage } from './villages.js?v=cognition-v1';
 
 export const EXTRA_FIELDS = [
   ['workBackground','我的工作与经验','比如：产品运营，常常组织跨团队活动'],

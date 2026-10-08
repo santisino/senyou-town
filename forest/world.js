@@ -2,10 +2,11 @@ import * as T from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { SPACES } from "./data.js?v=village-v4";
-import { findPath, journey } from "./journey.js?v=village-v4";
-import { ForestCamera } from "./camera.js?v=edge-pan-v1";
+import { findPath, journey } from "./journey.js?v=cognition-v1";
+import { ForestCamera } from "./camera.js?v=cognition-v1";
 import { PLOTS, DISTRICTS, ENTRY, MAYOR, SPACE_POS, address, outdoorWalkable } from "./layout.js";
-import { houseStage } from "./settlement.js";
+import { houseStage } from "./settlement.js?v=cognition-v1";
+import { cognition, DIMS, sample, BOOKS } from './cognition-data.js?v=cognition-v1';
 export class ForestWorld {
   constructor(el, onSelect) {
     this.el = el;
@@ -94,6 +95,15 @@ export class ForestWorld {
       this.scene.add(this.root);
       this.village = this.root.getObjectByName("Village");
       this.home = this.root.getObjectByName("Home");
+      const added=await loader.loadAsync('./assets/cognition.glb?v=cognition-v1');
+      this.cognitionRoom=added.scene.getObjectByName('CognitionRoom');
+      this.home.add(this.cognitionRoom);
+      this.styleTemplates=added.scene.getObjectByName('StyleTemplates');
+      this.privateGate=this.cognitionRoom.getObjectByName('PrivateGate').clone(true);
+      this.cognitionRoom.getObjectByName('PrivateGate').visible=false;
+      this.home.add(this.privateGate);
+      this.lightPools=Array.from({length:4},(_,i)=>this.cognitionRoom.getObjectByName('LightPool_'+i));
+      this.studyLights=this.lightPools.map((pool,i)=>{const light=new T.PointLight(['#ffe2a5','#f7d694','#fff5df','#efb277'][i],1.4,6,2);light.position.copy(pool.position).add(new T.Vector3(0,2.1,0));this.home.add(light);return light;});
       this.avatar = this.root.getObjectByName("Avatar");
       this.root.traverse((o) => {
         if (o.isMesh) {
@@ -185,6 +195,7 @@ export class ForestWorld {
       }
       if(changing && !this.reduced) {plot.start=performance.now();plot.group.scale.y=.2;}
     });
+    this.updateExteriorStyles();
     this.neighbours ||= new Map();
     const residents=this.state.residents.filter(r=>r.arrived&&r.simulated&&r.id!==this.state.actor&&Number.isInteger(r.plot)).slice(0,8);
     for(const [id,n] of this.neighbours)if(!residents.some(r=>r.id===id)) {n.model.removeFromParent();this.neighbours.delete(id);}
@@ -253,6 +264,7 @@ export class ForestWorld {
   showHome(r) {
     this.cancelRoute();
     this.mode = "home";
+    this.studyOpen=false;
     this.resident = r;
     this.village.visible = false;
     this.home.visible = true;
@@ -266,15 +278,7 @@ export class ForestWorld {
       r.decor.includes("flowers");
     this.home.getObjectByName("PlantDecor").visible =
       journey(r).stations.includes('interest') || r.decor.includes("fern");
-    const labelKey=r.id+':'+r.name+':'+r.profile.headline;
-    if(this.doorTextKey!==labelKey) {
-      this.doorTextKey=labelKey;
-      if(this.doorText) {this.doorText.removeFromParent();this.doorText.geometry.dispose();this.doorText.material.map.dispose();this.doorText.material.dispose();}
-      const c=document.createElement('canvas');c.width=512;c.height=160;
-      const ctx=c.getContext('2d');ctx.fillStyle='#fff0d2';ctx.fillRect(0,0,512,160);ctx.fillStyle='#36553e';ctx.textAlign='center';ctx.font='bold 44px sans-serif';ctx.fillText(r.profile.headline ? r.name+'的小屋' : '等待我的故事',256,65,480);ctx.font='24px sans-serif';ctx.fillText((r.profile.headline||'走近，挂上你的门牌').slice(0,19),256,118,480);
-      const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;
-      this.doorText=new T.Mesh(new T.PlaneGeometry(1.4,.44),new T.MeshBasicMaterial({map:texture}));this.doorText.position.set(-1,1.53,3.24);this.home.add(this.doorText);
-    }
+    this.updateDoorText(r);
     this.home.getObjectByName("GiftDecor").visible = this.state.gifts.some(
       (g) => g.to === r.id && g.status === "pending",
     );
@@ -301,12 +305,61 @@ export class ForestWorld {
       }
     });
     this.refreshPins();
+    this.updateCognitionScene();
+  }
+  updateDoorText(r) {
+    const line=r.profile.collaboration||r.profile.headline;
+    const labelKey=r.id+':'+r.name+':'+line;
+    if(this.doorTextKey!==labelKey) {
+      this.doorTextKey=labelKey;
+      if(this.doorText) {this.doorText.removeFromParent();this.doorText.geometry.dispose();this.doorText.material.map.dispose();this.doorText.material.dispose();}
+      const c=document.createElement('canvas');c.width=512;c.height=160;
+      const ctx=c.getContext('2d');ctx.fillStyle='#fff0d2';ctx.fillRect(0,0,512,160);ctx.fillStyle='#36553e';ctx.textAlign='center';ctx.font='bold 44px sans-serif';ctx.fillText(line ? r.name+'的小屋' : '等待我的故事',256,65,480);ctx.font='24px sans-serif';ctx.fillText((line||'走近，挂上你的门牌').slice(0,19),256,118,480);
+      const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;
+      this.doorText=new T.Mesh(new T.PlaneGeometry(1.4,.44),new T.MeshBasicMaterial({map:texture}));this.doorText.position.set(-1,1.53,3.24);this.home.add(this.doorText);
+    }
+  }
+  enterStudy() {
+    if(this.mode!=='home'||this.resident?.id!==this.state.actor)return false;
+    this.studyOpen=true;this.refreshPins();
+    this.walkTo([4.7,0]);this.cameraRig.frame();return true;
+  }
+  leaveStudy() {this.studyOpen=false;this.cancelRoute();this.pos.set(3.1,.33,0);this.refreshPins();this.cameraRig.frame();}
+  updateCognitionScene() {
+    if(!this.cognitionRoom||!this.state)return;
+    this.updateExteriorStyles();
+    const own=this.resident?.id===this.state.actor,c=cognition(this.state);
+    this.cognitionRoom.visible=this.mode==='home'&&own;
+    this.studyLights.forEach((light,i)=>{light.visible=this.mode==='home'&&own&&!!c&&c.lightOn[i];});
+    if(!own||!c){this.lightPools.forEach(pool=>pool.visible=false);this.cognitionRoom.getObjectByName('ReactionBubbles').visible=false;for(let i=0;i<2;i++)this.cognitionRoom.getObjectByName('ReactionFlow_'+i).visible=false;return;}
+    this.lightPools.forEach((pool,i)=>pool.visible=c.lightOn[i]);
+    const bubbles=this.cognitionRoom.getObjectByName('ReactionBubbles'),focus=c.lab?.focus||'bubble';
+    bubbles.visible=!!c.lab&&c.lab.step>=2&&focus!=='none';
+    this.reactionFocus=focus;this.reactionStarted=performance.now();
+    for(let i=0;i<2;i++)this.cognitionRoom.getObjectByName('ReactionFlow_'+i).visible=!!c.lab&&c.lab.step>=2;
+    bubbles.scale.setScalar((focus==='stable'?.3:focus==='resonance'?.7:1)*(1-(c.lab?.checks.length||0)*.08));
+    const reactionColor={stable:'#83BEB6',resonance:'#DDB565',bubble:'#DC9B99',delay:'#A2B292',none:'#83BEB6'}[focus];
+    for(const group of [bubbles,this.cognitionRoom.getObjectByName('ReactionDish')])group.traverse(o=>{if(o.isMesh&&o.material.name!=='cream'){if(!o.userData.reactionMaterial){o.material=o.material.clone();o.userData.reactionMaterial=true;}o.material.color.set(reactionColor);}});
+    BOOKS.forEach((book,i)=>{const o=this.cognitionRoom.getObjectByName('BehaviorBook_'+i);o.rotation.z=c.bookMarks[book.id]?.turned?0:book.kind==='shadow'?.38:0;o.scale.setScalar(c.bookMarks[book.id]?.match==='no'?.82:1);if(book.kind==='pressure')o.traverse(child=>{if(child.isMesh&&child.material.name==='water')child.visible=!c.stormUnlocked;});});
+    for(let i=0;i<3;i++) {const window=this.cognitionRoom.getObjectByName('StateWindow_'+i);window.userData.open=c.window===['natural','work','pressure'][i];}
+  }
+  updateExteriorStyles() {
+    if(!this.styleTemplates||!this.state)return;
+    for(const plot of this.plots||[]){const c=cognition(this.state,plot.resident),r=this.state.residents.find(x=>x.id===plot.resident);
+      const key=JSON.stringify([plot.resident,c?.mix,!!r?.built]);if(plot.cognitionKey===key)continue;plot.cognitionKey=key;
+      if(!c){if(plot.styleProps)plot.styleProps.visible=false;plot.parts.Cabin_00.scale.y=1;continue;}
+      if(!plot.styleProps){plot.styleProps=new T.Group();DIMS.forEach(dim=>plot.styleProps.add(this.styleTemplates.getObjectByName('Style_'+dim).clone(true)));plot.group.add(plot.styleProps);}
+      plot.styleProps.visible=!!r?.built;plot.styleProps.children.forEach((o,i)=>o.scale.setScalar(.35+c.mix[i]/100*.8));
+      const roof=plot.parts.Cabin_00;roof.scale.y=.85+c.mix[0]/100*.3;
+      roof.traverse(o=>{if(o.isMesh&&o.material.name==='roof'){if(!o.userData.cognitionMaterial){o.material=o.material.clone();o.userData.cognitionMaterial=true;}o.material.color.set(new T.Color('#829475').lerp(new T.Color('#a4b991'),c.mix[2]/150));}});
+    }
   }
   updateProps(r) {
     if (!this.home) return;
     const pinsChanged = this.resident?.id !== r.id || this.resident?.confirmed !== r.confirmed ||
       JSON.stringify(journey(this.resident || r).stations) !== JSON.stringify(journey(r).stations);
     this.resident = r;
+    this.updateDoorText(r);
     this.home.getObjectByName('PhotoStand').visible=r.id===this.state.actor && r.confirmed;
     // Empty physical stations remain in the room: they are where expression begins.
     this.home.getObjectByName("GiftDecor").visible=this.state.gifts.some(g=>g.to===r.id && g.status==='pending');
@@ -396,6 +449,17 @@ export class ForestWorld {
     this.pinPool = new Map(this.pins.map(p => [p.key, p]));
     this.pins = [];
     if (this.mode === "home") {
+      if(this.studyOpen&&this.resident.id===this.state.actor) {
+        const rows=[['cog-report','报告匣',[10.3,1.25,1.65],[9.05,1.4]],['cog-exterior','小屋风格配方',[4.2,1.3,-.6],[4.6,-.3]],
+          ['cog-window-natural','晨光窗',[5.25,2.5,-3.05],[5.25,-1.05]],['cog-window-work','工作窗',[7.5,2.5,-3.05],[7.5,-1.6]],['cog-window-pressure','风暴窗',[9.75,2.5,-3.05],[9.35,-.6]],
+          ['cog-shelf','行为书架 · 16本',[5.5,1.6,-2.55],[5.4,-.9]],['cog-mirror','壁炉镜子',[9.65,2.4,-2.05],[9.35,-.6]],
+          ['cog-sun','阳光配方',[8.5,1.25,-.55],[8.45,.45]],['cog-lab','合拍实验台',[7.1,1.65,1.95],[7.1,.85]],['cog-door','门牌内面',[4.3,1.9,-.95],[4.65,-.7]],
+          ['cog-share','带一句话去门牌',[4.9,1.45,2.8],[5.1,1.8]],['cog-return','回到待客区',[4,1.3,0],[4.6,0]]];
+        for(const [key,label,pos,point] of rows)this.pin(label,pos,()=>this.onSelect({type:'object',key}),key,point);
+        for(const [id,title,pos,point] of [['stability','稳定之光',[5,.55,-1.2],[5.1,-1.05]],['recognition','认可之光',[4.7,.55,1.5],[4.8,1.05]],['autonomy','自主之光',[7.5,.55,-.7],[7.5,-.55]],['support','支持之光',[9.5,.55,-1.1],[9.35,-.6]]])this.pin(title,pos,()=>this.onSelect({type:'object',key:'cog-sun-'+id}),'cog-sun-'+id,point);
+        this.finishPins();return;
+      }
+      if(this.resident.id===this.state.actor)this.pin('私人认知区 · 仅自己',[3.85,1.7,0],()=>this.onSelect({type:'object',key:'cog-enter'}),'cog-enter',[3.15,0]);
       for (const [key, label, pos, approach] of [
         ["door", "门牌", [-1, 1.6, 3.15], [-1,2.75]],
         ["interest", "兴趣角", [-2.4, 2.2, -2.6], [-1.75,-1.75]],
@@ -472,6 +536,13 @@ export class ForestWorld {
     if (hits.length) {
       let o = hits[0].object;
       while (o) {
+        if(this.mode==='home'&&this.studyOpen&&this.resident?.id===this.state.actor) {
+          let key=o.name==='BehaviorShelf'?'cog-shelf':o.name==='DoorInside'?'cog-door':o.name==='FireplaceMirror'?'cog-mirror':o.name==='LightRecipe'?'cog-sun':o.name.startsWith('LightPool_')?'cog-sun-'+['stability','recognition','autonomy','support'][Number(o.name.slice(-1))]:o.name==='ReportFolio'?'cog-report':o.name==='ShareExit'?'cog-share':/^(LabBench|Reagent_|Reaction)/.test(o.name)?'cog-lab':null;
+          if(o.name.startsWith('StateWindow_'))key='cog-window-'+['natural','work','pressure'][Number(o.name.slice(-1))];
+          if(o.name.startsWith('BehaviorBook_')) {const id=Number(o.name.slice(13));this.interact({key:'cog-shelf',approach:[5.4,-.9],callback:()=>this.onSelect({type:'object',key:'cog-book-'+id})});return;}
+          if(key){this.approach(key);return;}
+        }
+        if(o===this.privateGate&&this.resident?.id===this.state.actor){this.approach('cog-enter');return;}
         if(o===this.mayor) {this.approach('mayor');return;}
         const pin = this.pins.find((p) => p.key === o.name);
         if (pin) {
@@ -506,6 +577,10 @@ export class ForestWorld {
   }
   walkable(x, z) {
     if (this.mode === "home") {
+      if(this.studyOpen&&this.resident?.id===this.state.actor&&x>=3.3&&x<=10.65&&z>=-2.7&&z<=3.1) {
+        if(x<4.3&&Math.abs(z)>1.2)return false;
+        return !(x>4.1&&x<6.75&&z< -1.35||x>8.4&&z< -1.3||x>5.5&&x<8.7&&z>1.2||x>9.4&&z>.9);
+      }
       if (x < -3.3 || x > 3.5 || z < -2.7 || z > 3.15) return false;
       return !(
         (x < -2.1 && z < 1.65) ||
@@ -548,6 +623,10 @@ export class ForestWorld {
       raw = (now - this.last) / 1000,
       dt = Math.min(raw, 0.05);
     this.last = now;
+    if(this.mode==='home'&&this.cognitionRoom?.visible) {
+      for(let i=0;i<3;i++){const o=this.cognitionRoom.getObjectByName('StateWindow_'+i);o.rotation.y+=((o.userData.open?-.07:0)-o.rotation.y)*(this.reduced?1:Math.min(1,dt*6));}
+      const bubbles=this.cognitionRoom.getObjectByName('ReactionBubbles');if(this.reactionFocus==='delay'&&cognition(this.state)?.lab?.step>=2)bubbles.visible=performance.now()-this.reactionStarted>1600;if(bubbles.visible&&!this.reduced){bubbles.position.y=1.32+Math.sin(now*(this.reactionFocus==='resonance'?.004:.002))*(this.reactionFocus==='stable'?.015:.12);}
+    }
     this.metrics.frames++;
     this.metrics.seconds += raw;
     if (this.benchmark) {
@@ -647,12 +726,13 @@ export class ForestWorld {
         if(p.el.textContent!==label)p.el.textContent=label;
         const anchor=phoneMap&&p.key==='district-2'?new T.Vector3(-25,1,0):phoneMap&&p.key==='public-zone'?new T.Vector3(24,1,0):p.pos.clone();
         const v = anchor.project(this.camera);
-        const x = (v.x * 0.5 + 0.5) * this.el.clientWidth;
+        let x = (v.x * 0.5 + 0.5) * this.el.clientWidth;
         let y = (-v.y * 0.5 + 0.5) * this.el.clientHeight;
         p.el.hidden = v.z > 1 || v.z < -1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 || (this.mode==="town" && this.distance(p)>Math.max(17,this.cameraRig.controls.getDistance()));
         if(p.plot && !p.own && this.mode!=='home' && this.cameraRig.controls.getDistance()<110 && this.distance(p)>21)p.el.hidden=true;
         if(p.zone && this.cameraRig.controls.getDistance()<45)p.el.hidden=true;
         if(phoneMap&&p.zone&&p.key!=='district-2'&&p.key!=='public-zone')p.el.hidden=true;
+        if(this.mode==='home'&&this.el.clientWidth<700&&!p.el.hidden){const half=p.el.offsetWidth/2+6;x=Math.max(half,Math.min(this.el.clientWidth-half,x));}
         if (!p.el.hidden && !distant) {
           for (
             let i = 0;

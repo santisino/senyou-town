@@ -1,6 +1,6 @@
-import { activeVillage, ACTIVITY_VILLAGE, isPublic, joined } from './villages.js?v=connections-v2';
-import { lesson, livePair, pairView, shareApprovals } from './lesson-data.js?v=connections-v2';
-import { advanceCohort } from './settlement.js';
+import { activeVillage, ACTIVITY_VILLAGE, isPublic, joined } from './villages.js?v=cognition-v1';
+import { lesson, livePair, pairView, shareApprovals } from './lesson-data.js?v=cognition-v1';
+import { advanceCohort } from './settlement.js?v=cognition-v1';
 
 // Experience routing is local Demo presentation, not authentication or server permissions.
 export const entry = s => s.entry?.version === 1 ? s.entry : {version:1,role:null,mode:'solo',employeeActor:'me',preview:null};

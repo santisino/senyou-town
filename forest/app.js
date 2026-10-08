@@ -1,14 +1,16 @@
-import { ForestWorld } from "./world.js?v=edge-pan-v1";
+import { ForestWorld } from "./world.js?v=cognition-v1";
+import { createCognitionUI } from './cognition-ui.js?v=cognition-v1';
+import { cognition,progress as cognitionProgress } from './cognition-data.js?v=cognition-v1';
 import { QUESTIONS, draftProfile } from "./interview.js?v=neighbors-v1";
 import { GUIDES, PHOTO_SPOTS, photoMap, gardenCheck } from "./space-guides.js?v=neighbors-v1";
 import { createSharing } from "./share-ui.js?v=connections-v2";
-import { createVillageUI } from './village-ui.js?v=roles-v2';
-import { createLessonUI } from './lesson-ui.js?v=roles-v2';
-import { entry, soloEmployee, nextDemoResponse } from './entry-data.js?v=roles-v2';
+import { createVillageUI } from './village-ui.js?v=cognition-v1';
+import { createLessonUI } from './lesson-ui.js?v=cognition-v1';
+import { entry, soloEmployee, nextDemoResponse } from './entry-data.js?v=cognition-v1';
 import { createEntryUI } from './entry-ui.js?v=roles-v2';
-import { lesson,livePair,PHASES } from './lesson-data.js?v=connections-v2';
-import { EXTRA_FIELDS } from './connect-data.js?v=connections-v2';
-import { activeVillage, isPublic, joined, applyArrival, checkpoint } from './villages.js?v=connections-v2';
+import { lesson,livePair,PHASES } from './lesson-data.js?v=cognition-v1';
+import { EXTRA_FIELDS } from './connect-data.js?v=cognition-v1';
+import { activeVillage, isPublic, joined, applyArrival, checkpoint } from './villages.js?v=cognition-v1';
 import { FIELDS, SPACES, SHOP, NOTE } from "./data.js?v=village-v4";
 import {
   fresh,
@@ -20,12 +22,12 @@ import {
   matches,
   transact,
   ready,
-} from "./state.js?v=roles-v2";
+} from "./state.js?v=cognition-v1";
 import qrcode from "../vendor/qrcode.mjs";
 import { encodeVillage, decodeVillage } from "./config.js";
-import { journey, nextStation, STATIONS } from "./journey.js?v=village-v4";
+import { journey, nextStation, STATIONS } from "./journey.js?v=cognition-v1";
 import { PLOTS, SPACE_POS, address } from "./layout.js";
-import { houseStage, villageCounts } from "./settlement.js";
+import { houseStage, villageCounts } from "./settlement.js?v=cognition-v1";
 const $ = (s) => document.querySelector(s),
   esc = (s) =>
     String(s ?? "").replace(
@@ -50,7 +52,7 @@ let state = load(),
   returnFocus,
   directoryScroll = 0;
 let stationKey = "door", mayorTurn = 0;
-let sharing, villageUI, lessonUI, entryUI;
+let sharing, villageUI, lessonUI, entryUI, cognitionUI;
 let interviewGroup='interest', interviewIndex=0;
 let demoVisitTimer;
 let demoResponseTimer;
@@ -84,11 +86,12 @@ function toast(text) {
 function commit(a) {
   try {
     const next = transact(state, a);
-    const profileOnly = ['interview','note','entry:response'].includes(a.type) || a.type.startsWith('social:') || (a.type.startsWith('class:')&&!a.type.startsWith('class:admin:')) || (a.type === "profile" && resident(next).confirmed === me().confirmed);
+    const profileOnly = ['interview','note','entry:response'].includes(a.type) || a.type.startsWith('cog:') || a.type.startsWith('social:') || (a.type.startsWith('class:')&&!a.type.startsWith('class:admin:')) || (a.type === "profile" && resident(next).confirmed === me().confirmed);
     persist(next);
     state = next;
     world?.setState(state, { profileOnly });
     if (world?.mode === "home" && homeId) world.updateProps(profile(homeId));
+    if(a.type.startsWith('cog:'))world?.updateCognitionScene();
     if (!profileOnly||a.type.startsWith('class:')||a.type==='entry:response') hud();
     return true;
   } catch (e) {
@@ -124,6 +127,7 @@ function panel(title, subtitle, body, foot = "", classes = "") {
 }
 function close() {
   sharing?.dispose();
+  cognitionUI?.dispose();
   lessonUI?.dispose();
   document.body.classList.remove("panel-open");
   $("#panel-root").innerHTML = "";
@@ -179,7 +183,7 @@ document.addEventListener("keydown", (e) => {
 function hud() {
   entryUI?.sync();
   document.body.dataset.scene = world?.mode || "overview";
-  $("#village-name").textContent = state.village.name;
+  $("#village-name").textContent = `${isPublic(state)?'公共村':'场景村'}｜${state.village.name}`;
   document.title = `蚂蚁森友会 · ${state.village.name}`;
   const r = me(),
     isHome = world?.mode === "home";
@@ -220,6 +224,13 @@ function hud() {
   $("#village-progress").style.top=($("#mission").offsetTop+$("#mission").offsetHeight+8)+'px';
   $(".demo-label").textContent=state.experience==='opening'?"共同建村 · 同学进度为本机模拟 · 不跨设备同步":"已建村庄演示 · 虚构居民 · 本地保存";
   if(isPublic(state))$('.demo-label').textContent='蚂蚁森友村 · 持续开放的公共村演示 · 不跨设备同步';
+  if(isHome&&homeId===state.actor){
+    const privateMode=world.studyOpen,count=cognitionProgress(state).filter(x=>x.done).length;
+    if(privateMode){$('#mission').innerHTML=innerWidth<700?`<div class="step">私人认知区 · ${count}/7</div><h2>${cognition(state)?'走近物件，慢慢认识自己':'先走到右下方的报告匣'}</h2><p>报告和反思只留给自己；分享前，再确认一句话。</p>`:`<div class="step">私人认知区 · 仅自己</div><h2>${cognition(state)?'慢慢读懂不同情境下的我':'先走到报告匣，选择一个示例'}</h2><p>${cognition(state)?'风格配方 → 三扇窗 → 行为书架 → 门牌内面 → 壁炉镜子 → 阳光配方 → 合拍实验台。每一步走近物件再点。':'报告匣在右下角。这里只展示虚构样例，不上传真实报告。'}</p><div class="cog-world-hint">${count}/7 项已留下探索结果。私人内容不会进入串门资料；只有分享出口亲自确认的那一句话会带出去。</div>`;}
+    else $('#mission').insertAdjacentHTML('beforeend','<p class="cog-world-hint">这里是待客区域。右侧屏风后是自己的私人认知区；兴趣和心愿照常表达，私人探索不影响入驻。</p>');
+    $('#scene-caption').textContent=privateMode?'我的私人认知区 · 原始报告与反思只留在这里':'待客区 · 只展示本人愿意公开的故事';
+  }
+  document.body.dataset.privateCognition=String(isHome&&homeId===state.actor&&!!world.studyOpen);
   scheduleDemoVisit();
   scheduleDemoResponse();
 }
@@ -345,12 +356,12 @@ function inspectBook() {
   }
   panel("把这份介绍，留在我的小屋","桌上的册子 · 最后由我确认",summary(me(),true)+`<label class="checkline"><input id="reviewed" type="checkbox" ${me().reviewed?"checked":""}>我已阅读并确认，这些话代表我当前愿意表达的自己。</label>`,button("合上再看看","close")+button("确认，完成入驻","confirm","","primary"),"wide book");
 }
-function walkHome(id) {
+function walkHome(id,after) {
   if(!(id===state.actor && journey(me()).key) && !canVisit(state,id)) { toast(journey(me()).key?"先完成自己的说明书，等待村长开放串门。":"先去村口找村长，领取宅地钥匙。");return; }
   close();
-  if(world.mode==="home") { exitThen(()=>walkHome(id));return; }
+  if(world.mode==="home") { exitThen(()=>walkHome(id,after));return; }
   homeId=null;
-  world.goHome(id,()=>id===state.actor ? plotVisit(resident(state,id).plot) : visit(id));
+  world.goHome(id,()=>{id===state.actor ? plotVisit(resident(state,id).plot) : visit(id);after?.();});
   hud();
 }
 function walkObject(key) { close(); world.approach(key); hud(); }
@@ -360,6 +371,7 @@ function walkSpace(key) {
   world.approach("Place_"+key);hud();
 }
 function exitThen(callback) {
+  if(world.studyOpen){const gate=world.pins.find(p=>p.key==='cog-return');world.interact({...gate,callback:()=>{world.leaveStudy();hud();exitThen(callback);}});return;}
   const door=world.pins.find(p=>p.key==="exit");
   world.interact({...door,callback:()=>{leaveHome();callback();}});
 }
@@ -469,6 +481,7 @@ function book(chapter = 0) {
 }
 function object(key) {
   if (!homeId || !canVisit(state, homeId)) { toast("这间小屋暂不可互动，请出门后重新进入。");return; }
+  if(key.startsWith('cog-')){cognitionUI?.handle(key,{});return;}
   if(key==='photo') { if(homeId===state.actor && me().confirmed)sharing.studio();return; }
   if(homeId===state.actor && STATIONS[key]) { edit(key);return; }
   const r = profile(homeId),
@@ -486,7 +499,7 @@ function object(key) {
     door: [
       "门前认识",
       `${r.name}的小屋`,
-      person(r) + `<p class="quote">${esc(p.headline)}</p>${tags(p.traits)}`,
+      person(r) + `<p class="quote">${esc(p.headline)}</p>${tags(p.traits)}` + section("一起做事的小提示",p.collaboration),
     ],
     interest: [
       "兴趣角",
@@ -885,6 +898,7 @@ document.addEventListener("click", async (e) => {
   const a = b.dataset.action,
     d = b.dataset;
   if(entryUI?.handle(a,d))return;
+  if(await cognitionUI?.handle(a,d))return;
   const organizerOnly=a==='learn-teacher'||['learn-authorize','learn-activity','learn-tab','learn-phase','learn-seed','learn-demo-ready','learn-sample','learn-actor','learn-reset-check','learn-reset','social-graph','presenter','quality','story','switch-role','toggle-stage','reset','reset-confirm','mature-demo','cohort-next','cohort-50'].includes(a)||a.startsWith('net-')&&['admin','roles','role','tab','stage','settings-save','create','create-save','join-reply','sample-request','member','publish','content-status','invite','preview-share','report-reply','archive-check','archive'].includes(a.slice(4));
   if(organizerOnly&&entry(state).role!=='organizer'){toast('这是组织者工具。需要时请明确切换体验角色。');return;}
   if(await lessonUI?.handle(a,d))return;
@@ -1018,7 +1032,7 @@ document.addEventListener("click", async (e) => {
         walkHome(state.actor);
         break;
       case "exit-home":
-        walkObject("exit");
+        if(world.studyOpen)exitThen(()=>{});else walkObject("exit");
         break;
       case "map":
         close();
@@ -1435,6 +1449,7 @@ async function init() {
     await world.load();
     checkpoint(state);
     villageUI=createVillageUI({getState:()=>state,commit,panel,button,esc,toast,close,travel:villageTravel,meetMayor:mayor,goInviter:followShare,hostActivity:index=>lessonUI?.teacher(index)});
+    cognitionUI=createCognitionUI({getState:()=>state,getWorld:()=>world,getHomeId:()=>homeId,commit,panel,button,esc,toast,close,hud,walkHome});
     sharing = createSharing({getState:()=>state,getWorld:()=>world,panel,button,esc,saveState,toast,commit});
     lessonUI=createLessonUI({getState:()=>state,getWorld:()=>world,commit,panel,button,esc,toast,close,walkSpace,walkHome,travel:villageTravel,hostWorkspace:(body,index)=>villageUI.activity(body,index)});
     entryUI=createEntryUI({getState:()=>state,commit,getWorld:()=>world,close,openWorkspace:()=>villageUI.admin(0),hud,invited:params.has('entry')});
@@ -1446,7 +1461,7 @@ async function init() {
     entryUI.resume();scheduleDemoResponse();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "roles-v2-20261008",
+      build: "cognition-v1-20261009",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),

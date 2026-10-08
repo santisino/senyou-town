@@ -1,5 +1,5 @@
-import { activeVillage, joined, mayManage } from './villages.js?v=connections-v2';
-import { matchList } from './connect-data.js?v=connections-v2';
+import { activeVillage, joined, mayManage } from './villages.js?v=cognition-v1';
+import { matchList } from './connect-data.js?v=cognition-v1';
 
 export const PHASES = ['准备入村', '发现伙伴', '协作任务', '共同复盘'];
 export const SCENARIO = {

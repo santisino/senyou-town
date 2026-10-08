@@ -1,24 +1,25 @@
-import { activeVillage, isPublic, joined, mayManage, villageSummary, PUBLIC_VILLAGE, shareLink } from './villages.js?v=connections-v2';
+import { activeVillage, isPublic, joined, mayManage, villageSummary, PUBLIC_VILLAGE, shareLink } from './villages.js?v=cognition-v1';
 import { FIELDS as BASE_FIELDS, SPACES } from './data.js?v=village-v4';
-import { EXTRA_FIELDS } from './connect-data.js?v=connections-v2';
+import { EXTRA_FIELDS } from './connect-data.js?v=cognition-v1';
 import { encodeVillage } from './config.js';
 import qrcode from '../vendor/qrcode.mjs';
 
 const TABS=['总览','村庄设置','居民与加入','活动与公共空间','邀请与分享','治理与归档','活动主持','参与进度','活动成果'];
 const FIELDS=[...BASE_FIELDS,...EXTRA_FIELDS];
 const ROLE={resident:'普通森友',activity:'活动村长',public:'公共村长',donglai:'东来 · 双村村长'};
+const villageLabel=x=>`${x.kind==='public'?'公共村':'场景村'}｜${x.settings.name}`;
 export function createVillageUI({getState,commit,panel,button,esc,toast,close,travel,meetMayor,goInviter,hostActivity}) {
   const $=q=>document.querySelector(q);
   const b=(text,action,data='',cls='')=>button(text,'net-'+action,data,cls);
   const arrow='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>';
   const s=()=>getState(), me=()=>s().residents.find(r=>r.id===s().actor), v=()=>activeVillage(s());
   let tab=0;
-  const stateLabel=x=>x.archived?'活动已归档':x.kind==='public'?'公共村 · 持续开放':x.stage==='open'?'活动村 · 已开放串门':'活动村 · 正在安家';
+  const stateLabel=x=>x.archived?'活动已归档':x.kind==='public'?'公共村 · 持续开放':x.stage==='open'?'场景村 · 已开放串门':'场景村 · 正在安家';
   function picker() {
     panel('森林里的村庄','一份个人介绍，可以在不同村庄遇见不同的人。',
       `<p class="notice">换村不会重新填写个人资料。每座村分别确认加入与公开范围；礼物、报名、金币与活动记录留在发生的村里。</p><div class="village-list">${Object.values(s().network.villages).map(x=>{
         const m=x.members[s().actor],current=x.id===s().network.active;
-        return `<article><div><h3>${esc(x.settings.name)}</h3><p>${stateLabel(x)} · ${m?.membership==='joined'?'我已加入':m?.membership==='pending'?'等待村长回应':'尚未加入'}</p><small>${esc(x.settings.goal)}</small></div>${b(current?'正在这里':'去村口看看','travel',`data-id="${esc(x.id)}" ${current?'disabled':''}`,current?'':'primary')}</article>`;
+        return `<article><div><h3>${esc(villageLabel(x))}</h3><p>${stateLabel(x)} · ${m?.membership==='joined'?'我已加入':m?.membership==='pending'?'等待村长回应':'尚未加入'}</p><p class="muted">${x.kind==='public'?'持续开放，承接朋友分享，方便日常回来。':'为一次具体活动建立，由组织者安排入驻、串门和协作。'}</p><small>${esc(x.settings.goal)}</small></div>${b(current?'正在这里':'去村口看看','travel',`data-id="${esc(x.id)}" ${current?'disabled':''}`,current?'':'primary')}</article>`;
       }).join('')}</div><p class="muted">公共村在本次演示中展示 50 个宅地；更多街区是后续扩展方向，不代表百人实时在线。</p>`,
       (joined(s())?b('管理我在本村的公开范围','privacy'):'')+b('给村长留一条反馈','feedback'),'wide');
   }
@@ -46,7 +47,7 @@ export function createVillageUI({getState,commit,panel,button,esc,toast,close,tr
   }
   function overview() {
     const c=villageSummary(s(),v().id);
-    return `<div class="admin-stats"><div><span>已加入</span><strong>${c.joined}</strong><small>本机</small></div><div><span>已准备好</span><strong>${c.ready}</strong><small>本机</small></div><div><span>待处理申请</span><strong>${c.pending}</strong><small>本机</small></div><div class="admin-stat-actions">${b(isPublic(s())?'公共村邀请':'生成活动邀请','invite','','primary')}${b('创建活动村','create')}</div></div><div class="admin-overview"><section><h3>居民近况</h3>${memberRows(3)}</section><section class="admin-rules"><h3>这座村的规则</h3><ol><li>${isPublic(s())?'持续开放，随时入驻':'先安家，再由村长开放串门'}</li><li>公开范围由居民自己确认</li><li>个人资料不因换村重新填写</li></ol>${!isPublic(s())?b(v().stage==='open'?'暂停串门':'开放串门','stage','','primary'):''}</section></div><section class="share-route"><h3>分享如何抵达这里</h3><div><span>朋友的分享</span><i>${arrow}</i><span>蚂蚁森友村</span><i>${arrow}</i><span>找到邀请你的人</span></div></section>`;
+    return `<div class="admin-stats"><div><span>已加入</span><strong>${c.joined}</strong><small>本机</small></div><div><span>已准备好</span><strong>${c.ready}</strong><small>本机</small></div><div><span>待处理申请</span><strong>${c.pending}</strong><small>本机</small></div><div class="admin-stat-actions">${b(isPublic(s())?'公共村邀请':'生成活动邀请','invite','','primary')}${b('创建活动村','create')}</div></div><div class="admin-overview"><section><h3>居民近况</h3>${memberRows(3)}</section><section class="admin-rules"><h3>这座村的规则</h3><ol><li>${isPublic(s())?'持续开放，承接分享，日常回来':'为具体活动建立，先安家，再由组织者开放串门'}</li><li>公开范围由居民自己确认</li><li>个人资料不因换村重新填写</li></ol>${!isPublic(s())?b(v().stage==='open'?'暂停串门':'开放串门','stage','','primary'):''}</section></div><section class="share-route"><h3>分享如何抵达这里</h3><div><span>朋友的分享</span><i>${arrow}</i><span>蚂蚁森友村</span><i>${arrow}</i><span>找到邀请你的人</span></div></section>`;
   }
   function homeActions() {
     const steps=isPublic(s())?[
@@ -90,7 +91,7 @@ export function createVillageUI({getState,commit,panel,button,esc,toast,close,tr
   }
   function renderWorkspace(body) {
     const permitted=mayManage(s());
-    panel('村长工作台','活动组织者 · 本机 Demo',`<div class="mayor-workspace"><aside class="mayor-sidebar"><h2>森友会</h2><label class="field"><span class="sr-only">管理哪座村</span><select id="admin-village">${Object.values(s().network.villages).map(x=>`<option value="${x.id}" ${x.id===v().id?'selected':''}>${esc(x.settings.name)}</option>`).join('')}</select></label><p>${stateLabel(v())}</p><nav aria-label="村长工作台栏目">${TABS.map((t,i)=>b(t,'tab',`data-index="${i}" aria-current="${i===tab?'page':'false'}" ${isPublic(s())&&i>=6?'disabled':''}`,i===tab?'selected':'')).join('')}</nav><div class="mayor-identity"><strong>活动组织者</strong><small>本地演示权限，非真实账号授权</small>${button('我设置好了，用参与者视角体验','entry-preview')}${button('切换体验角色','entry-gate')}</div></aside><main class="mayor-main"><div class="admin-heading"><div><h1>${esc(v().settings.name)}</h1><p>${tab===0?'从这四件事开始，准备并主持一场活动。':TABS[tab]||'演示工具'}</p></div><span class="admin-demo-note">本机演示 · 不与其他设备同步</span></div>${permitted?body:'<p class="notice">请选择有权限的村庄。</p>'}<details class="workspace-tools"><summary>演示工具与示例数据（可选）</summary><p>仅为独自展示准备虚构样本，不是员工必经步骤。</p><div class="actions">${b('准备虚构班级','tab','data-index="9"')}${button('更多演示工具','presenter')}${button('我设置好了，用参与者视角体验','entry-preview')}</div></details></main></div>`,'','mayor-panel');
+    panel('村长工作台','活动组织者 · 本机 Demo',`<div class="mayor-workspace"><aside class="mayor-sidebar"><h2>森友会</h2><label class="field"><span class="sr-only">管理哪座村</span><select id="admin-village">${Object.values(s().network.villages).map(x=>`<option value="${x.id}" ${x.id===v().id?'selected':''}>${esc(villageLabel(x))}</option>`).join('')}</select></label><p>${stateLabel(v())}</p><nav aria-label="村长工作台栏目">${TABS.map((t,i)=>b(t,'tab',`data-index="${i}" aria-current="${i===tab?'page':'false'}" ${isPublic(s())&&i>=6?'disabled':''}`,i===tab?'selected':'')).join('')}</nav><div class="mayor-identity"><strong>活动组织者</strong><small>本地演示权限，非真实账号授权</small>${button('我设置好了，用参与者视角体验','entry-preview')}${button('切换体验角色','entry-gate')}</div></aside><main class="mayor-main"><div class="admin-heading"><div><h1>${esc(villageLabel(v()))}</h1><p>${tab===0?'从这四件事开始，准备并主持一场活动。':TABS[tab]||'演示工具'}</p></div><span class="admin-demo-note">本机演示 · 不与其他设备同步</span></div>${permitted?body:'<p class="notice">请选择有权限的村庄。</p>'}<details class="workspace-tools"><summary>演示工具与示例数据（可选）</summary><p>仅为独自展示准备虚构样本，不是员工必经步骤。</p><div class="actions">${b('准备虚构班级','tab','data-index="9"')}${button('更多演示工具','presenter')}${button('我设置好了，用参与者视角体验','entry-preview')}</div></details></main></div>`,'','mayor-panel');
     $('.panel-head .close').textContent='切换体验角色';
     $('.panel-head .close').dataset.action='entry-gate';
     $('.panel-head .close').setAttribute('aria-label','切换体验角色');
@@ -112,7 +113,7 @@ export function createVillageUI({getState,commit,panel,button,esc,toast,close,tr
     else {url.searchParams.set('entry','activity');url.searchParams.set('vid',v().id);url.searchParams.set('policy',v().joinPolicy);url.searchParams.set('config',await encodeVillage(v().settings));}
     const qr=qrcode(0,'L');qr.addData(url.href);qr.make();
     panel(isPublic(s())?'邀请同事来蚂蚁森友村':'本场活动的入村邀请','不授予村长权限，不包含居民资料。',
-      `<div class="invite-qr">${qr.createSvgTag({cellSize:3,margin:4,scalable:true})}</div><h3>${esc(v().settings.name)}</h3><p class="notice">手机打开会建立一份独立的本地体验，不会自动同步这台电脑上的成员、开放阶段或消息。活动设置为生成链接时的快照。</p><label class="field">可复制的邀请链接<textarea id="net-invite-url" readonly>${esc(url.href)}</textarea></label><a href="${esc(url.href)}" target="_blank" rel="noopener">新窗口打开此入口</a>`,b('复制链接','copy-link')+b('回工作台','admin'));
+      `<div class="invite-qr">${qr.createSvgTag({cellSize:3,margin:4,scalable:true})}</div><h3>${esc(villageLabel(v()))}</h3><p class="notice">手机打开会建立一份独立的本地体验，不会自动同步这台电脑上的成员、开放阶段或消息。活动设置为生成链接时的快照。</p><label class="field">可复制的邀请链接<textarea id="net-invite-url" readonly>${esc(url.href)}</textarea></label><a href="${esc(url.href)}" target="_blank" rel="noopener">新窗口打开此入口</a>`,b('复制链接','copy-link')+b('回工作台','admin'));
   }
   function feedback() {
     const reports=v().reports.filter(r=>r.person===s().actor);

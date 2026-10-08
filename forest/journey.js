@@ -10,7 +10,7 @@ export function journey(r) {
 export function nextStation(r) { return Object.keys(STATIONS).find(k => !journey(r).stations.includes(k)); }
 // Grid pathfinding: movement follows a walkable route, not a teleport to the UI target.
 export function findPath(start, end, walkable, home=false) {
-  const step=home?0.25:0.5, bound=home?4:58;
+  const step=home?0.25:0.5, bound=home?14:58;
   const cell=p=>[Math.round(p[0]/step),Math.round(p[1]/step)];
   const from=cell(start), to=cell(end), key=p=>p.join(",");
   const open=[], came=new Map(), cost=new Map([[key(from),0]]), closed=new Set(), validity=new Map();

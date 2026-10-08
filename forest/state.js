@@ -1,11 +1,12 @@
 import { seedResidents, blankResident, FIELDS, SHOP } from "./data.js?v=village-v4";
-import { journey, STATIONS } from "./journey.js?v=village-v4";
-import { claimPlot, advanceCohort, settleSample } from "./settlement.js";
+import { journey, STATIONS } from "./journey.js?v=cognition-v1";
+import { claimPlot, advanceCohort, settleSample } from "./settlement.js?v=cognition-v1";
 import { QUESTIONS } from "./interview.js?v=neighbors-v1";
-import { ensureNetwork, checkpoint, netAction, joined, isPublic, activeVillage } from './villages.js?v=connections-v2';
-import { lessonAction } from './lesson-data.js?v=connections-v2';
-import { connectAction, EXTRA_FIELDS } from './connect-data.js?v=connections-v2';
-import { entryAction } from './entry-data.js?v=roles-v2';
+import { ensureNetwork, checkpoint, netAction, joined, isPublic, activeVillage } from './villages.js?v=cognition-v1';
+import { lessonAction } from './lesson-data.js?v=cognition-v1';
+import { connectAction, EXTRA_FIELDS } from './connect-data.js?v=cognition-v1';
+import { entryAction } from './entry-data.js?v=cognition-v1';
+import { cognitionAction } from './cognition-data.js?v=cognition-v1';
 export const STORAGE = "senyou-forest-village-v2";
 const clone = (x) => structuredClone(x);
 const id = () =>
@@ -74,6 +75,7 @@ export function visible(s, rid, viewer = s.actor) {
     ),
     notes: viewer === rid ? r.notes : {},
     interview: viewer === rid ? (r.interview || {}) : {},
+    cognitionPublication: viewer===rid||(joined(s,viewer)&&joined(s,rid)&&r.confirmed&&s.stage==='open'&&r.public.collaboration) ? r.cognitionPublication : null,
   };
 }
 export function canVisit(s, rid) {
@@ -107,6 +109,7 @@ export function matches(s, r, query = "", filter = "all") {
 export function transact(original, action) {
   if(action.type.startsWith('net:'))return netAction(original,action);
   const initial=ensureNetwork(clone(original));
+  if(action.type.startsWith('cog:'))return checkpoint(cognitionAction(initial,action));
   if(action.type.startsWith('entry:'))return checkpoint(entryAction(initial,action,transact));
   if(action.type.startsWith('social:'))return checkpoint(connectAction(initial,action));
   if(action.type.startsWith('class:'))return checkpoint(lessonAction(initial,action));

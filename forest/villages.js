@@ -1,12 +1,12 @@
 import { FIELDS, seedResidents } from './data.js?v=village-v4';
-import { STATIONS } from './journey.js?v=village-v4';
+import { STATIONS } from './journey.js?v=cognition-v1';
 
 // Canonical people + village memberships. The old scene receives a derived active-village
 // projection; it is checkpointed before every switch. No cross-device authority is claimed.
 export const PUBLIC_VILLAGE = 'ant-public';
 export const ACTIVITY_VILLAGE = 'baima-session';
 const PERSONAL = ['id','name','appearance','profile','interview','decor','signature','wishMode','capacity','simulated','social'];
-const MEMBER = ['group','public','confirmed','reviewed','arrived','plot','built','journey','notes','bookmarked','controlled','membership','origin','suspended','socialPrivacy'];
+const MEMBER = ['group','public','confirmed','reviewed','arrived','plot','built','journey','notes','bookmarked','controlled','membership','origin','suspended','socialPrivacy','cognitionConsent','cognitionPublication'];
 const RUNTIME = ['experience','openingStep','welcomeSeen','wallets','items','gifts','requests','friends','connections','ledger','publicResults','shareCards'];
 const copy = x => structuredClone(x);
 const pick = (o, keys) => Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, copy(o[k])]));
