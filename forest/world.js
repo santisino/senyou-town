@@ -762,6 +762,8 @@ export class ForestWorld {
         if(this.mode==='home'&&this.el.clientWidth<700&&!p.el.hidden){const half=p.el.offsetWidth/2+6;x=Math.max(half,Math.min(this.el.clientWidth-half,x));}
         if (!p.el.hidden && !distant) {
           const width=p.el.offsetWidth,height=p.el.offsetHeight;
+          const floor=this.mode==='home'&&!this.studyOpen&&this.el.clientWidth<700?Math.max(document.querySelector('#mission').getBoundingClientRect().bottom,document.querySelector('#camera-tools').getBoundingClientRect().bottom)+height+8:-Infinity;
+          const originalY=Math.max(y,floor);y=originalY;let down=false;
           for (
             let i = 0;
             i < (this.mode==='home'?12:4) &&
@@ -770,7 +772,7 @@ export class ForestWorld {
             );
             i++
           )
-            y -= this.mode==='home'?height+7:35;
+            if(this.mode==='home'){if(!down&&y-height-7>=floor)y-=height+7;else{if(!down){down=true;y=originalY;}y+=height+7;}}else y-=35;
           placed.push({ x, y,width,height });
         }
         p.el.style.transform = `translate(-50%,-100%) translate(${x}px,${y}px)`;
