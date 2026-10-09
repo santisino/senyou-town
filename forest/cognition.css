@@ -41,7 +41,12 @@
 .cog-prescription{padding:22px 24px;background:#f3e4c9;border-left:5px solid #c78160;margin:22px 0}
 .cog-export{width:min(100%,380px);height:auto;display:block;margin:0 auto}
 .cog-world-hint{font-size:12px;line-height:1.65;background:#f3e4c9;padding:12px;margin-top:12px}
+.cog-entry-hint{border-left:3px solid #c78160}.cog-entry-hint strong{display:block;margin-bottom:4px;color:#36553e}
+.world-pin.cog-entry-pin{background:#c78160;color:#fff9ea;border-color:#fff2d5;font-weight:600;box-shadow:0 0 0 4px #f3e4c980,0 3px 14px #263d2520}
+.world-pin.cog-entry-pin:after{background:#c78160}
+.world-pin.cog-preview-pin{border-color:#d4bb8d;background:#fff2d5}
 @media(max-width:650px){.cognition-panel .panel-body{padding:20px}.cog-report-states{grid-template-columns:1fr}.cog-reagents{gap:18px}.cog-light-list{grid-template-columns:1fr}.cog-bookcase{gap:10px 7px}.cog-bookcase .cog-book{font-size:13px;padding:6px;border-left-width:5px}.cog-reaction-row{grid-template-columns:24px 1fr}.cog-reaction-row small{grid-column:1/-1}.cog-open-book{padding:20px}.cog-world-hint{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.cog-dish i{animation:none}}
 .cog-reaction.stable .cog-dish,.cog-reaction.resonance .cog-dish{background:#83b98c}.cog-reaction.resonance .cog-dish{box-shadow:0 0 22px #91c9a180}.cog-reaction.none .cog-dish{background:#a3a6a0}.cog-reaction.delay .cog-dish{background:#cf8d78}.cog-reaction.stable i,.cog-reaction.resonance i,.cog-reaction.none i{display:none}.cog-reaction.delay i{animation-delay:1.6s;background:#cf8d78}
 @media(max-width:650px){body[data-private-cognition=true] #mission{width:220px;padding:12px;pointer-events:none}body[data-private-cognition=true] #mission h2{font-size:15px}body[data-private-cognition=true] #mission p{font-size:11px;margin:0}body[data-private-cognition=true] #village-progress{display:none}}
+@media(max-width:650px){body[data-own-home=true] #mission{width:218px;padding:12px;pointer-events:none}body[data-own-home=true] #mission h2{font-size:15px}body[data-own-home=true] #mission p{font-size:11px;margin:0}body[data-own-home=true] #village-progress{display:none}}

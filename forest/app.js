@@ -1,4 +1,4 @@
-import { ForestWorld } from "./world.js?v=cognition-v2";
+import { ForestWorld } from "./world.js?v=study-entry-v1";
 import { createCognitionUI } from './cognition-ui.js?v=cognition-v2';
 import { cognition,progress as cognitionProgress } from './cognition-data.js?v=cognition-v2';
 import { QUESTIONS, draftProfile } from "./interview.js?v=neighbors-v1";
@@ -227,10 +227,12 @@ function hud() {
   if(isHome&&homeId===state.actor){
     const privateMode=world.studyOpen,count=cognitionProgress(state).filter(x=>x.done).length;
     if(privateMode){$('#mission').innerHTML=innerWidth<700?`<div class="step">私人认知区 · ${count}/7</div><h2>${cognition(state)?'走近物件，慢慢认识自己':'先走到右下方的报告匣'}</h2><p>报告和反思只留给自己；分享前，再确认一句话。</p>`:`<div class="step">私人认知区 · 仅自己</div><h2>${cognition(state)?'慢慢读懂不同情境下的我':'先走到报告匣，选择一个示例'}</h2><p>${cognition(state)?'风格配方 → 三扇窗 → 行为书架 → 门牌内面 → 壁炉镜子 → 阳光配方 → 合拍实验台。每一步走近物件再点。':'报告匣在右下角。这里只展示虚构样例，不上传真实报告。'}</p><div class="cog-world-hint">${count}/7 项已留下探索结果。私人内容不会进入串门资料；只有分享出口亲自确认的那一句话会带出去。</div>`;}
-    else $('#mission').insertAdjacentHTML('beforeend','<p class="cog-world-hint">这里是待客区域。右侧屏风后是自己的私人认知区；兴趣和心愿照常表达，私人探索不影响入驻。</p>');
+    else if(innerWidth<700)$('#mission').innerHTML=`<div class="step">我的小屋 · 左右都能逛</div><h2>${esc(r.confirmed?'左侧待客，右侧认识自己':title)}</h2><p>${r.confirmed?'点右侧报告匣或书架，人物会走进去。':'先在左侧留下介绍；右侧物件也可以点。'}报告与反思仅自己可见。</p>`;
+    else $('#mission').insertAdjacentHTML('beforeend','<p class="cog-world-hint cog-entry-hint"><strong>右边也可以探索</strong>点右侧的报告匣、书架或镜子，人物会走进去。报告与反思只留给自己；也可以先完成左侧的个人介绍。</p>');
     $('#scene-caption').textContent=privateMode?'我的私人认知区 · 原始报告与反思只留在这里':'待客区 · 只展示本人愿意公开的故事';
   }
   document.body.dataset.privateCognition=String(isHome&&homeId===state.actor&&!!world.studyOpen);
+  document.body.dataset.ownHome=String(isHome&&homeId===state.actor);
   scheduleDemoVisit();
   scheduleDemoResponse();
 }
@@ -1461,7 +1463,7 @@ async function init() {
     entryUI.resume();scheduleDemoResponse();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "cognition-v2-20261009",
+      build: "study-entry-v1-20261009",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),

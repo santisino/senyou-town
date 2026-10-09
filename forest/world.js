@@ -3,7 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { SPACES } from "./data.js?v=village-v4";
 import { findPath, journey } from "./journey.js?v=cognition-v2";
-import { ForestCamera } from "./camera.js?v=cognition-v2";
+import { ForestCamera } from "./camera.js?v=study-entry-v1";
 import { PLOTS, DISTRICTS, ENTRY, MAYOR, SPACE_POS, address, outdoorWalkable } from "./layout.js";
 import { houseStage } from "./settlement.js?v=cognition-v2";
 import { cognition, DIMS, sample, BOOKS } from './cognition-data.js?v=cognition-v2';
@@ -418,8 +418,19 @@ export class ForestWorld {
     if (this.routeLine) { this.routeLine.removeFromParent(); this.routeLine.geometry.dispose(); this.routeLine.material.dispose(); this.routeLine = null; }
   }
   distance(pin) { return Math.hypot(this.pos.x-pin.approach[0], this.pos.z-pin.approach[1]); }
+  openStudyFor(key) {
+    // Choosing an object is enough to enter; the screen is a spatial boundary,
+    // not a hidden unlock button. Never enable this in a neighbour's home.
+    if(this.blocked||this.mode!=='home'||this.resident?.id!==this.state.actor||this.studyOpen||!key?.startsWith('cog-')||key==='cog-enter')return;
+    this.enterStudy();
+    window.dispatchEvent(new Event('forest-mode'));
+    return true;
+  }
   interact(pin) {
     if (!pin || this.blocked) return;
+    // Keep caller-specific callbacks (individual books, chained exit routes).
+    // refreshPins reconciles preview objects in-place by semantic key.
+    this.openStudyFor(pin.key);
     if (this.mode === "overview") this.returnToPlayer();
     if (this.distance(pin) < 0.75) { this.cancelRoute(); this.lastInteraction={key:pin.key,distance:this.distance(pin)}; pin.callback(); return; }
     this.walkTo(pin.approach, pin);
@@ -433,7 +444,7 @@ export class ForestWorld {
     this.routeLine=new T.Line(new T.BufferGeometry().setFromPoints(points),new T.LineBasicMaterial({color:0xffe4a8,transparent:true,opacity:.8}));
     this.scene.add(this.routeLine);
   }
-  approach(key) { this.interact(this.pins.find(p=>p.key===key)); }
+  approach(key) { this.openStudyFor(key);this.interact(this.pins.find(p=>p.key===key)); }
   homePoint(id) {
     const r=this.state.residents.find(r=>r.id===id), p=PLOTS[r?.plot];
     return p ? [p.x,p.z+3.5] : [...ENTRY];
@@ -459,7 +470,22 @@ export class ForestWorld {
         for(const [id,title,pos,point] of [['stability','稳定之光',[5,.55,-1.2],[5.1,-1.05]],['recognition','认可之光',[4.7,.55,1.5],[4.8,1.05]],['autonomy','自主之光',[7.5,.55,-.7],[7.5,-.55]],['support','支持之光',[9.5,.55,-1.1],[9.35,-.6]]])this.pin(title,pos,()=>this.onSelect({type:'object',key:'cog-sun-'+id}),'cog-sun-'+id,point);
         this.finishPins();return;
       }
-      if(this.resident.id===this.state.actor)this.pin('私人认知区 · 仅自己',[3.85,1.7,0],()=>this.onSelect({type:'object',key:'cog-enter'}),'cog-enter',[3.15,0]);
+      if(this.resident.id===this.state.actor) {
+        this.pin('我的私人认知区 →',[3.85,1.7,0],()=>this.onSelect({type:'object',key:'cog-enter'}),'cog-enter',[3.15,0]);
+        this.pins.at(-1).el.classList.add('cog-entry-pin');
+        // Keep a few real, actionable markers visible from the guest area.
+        // The finer labels appear as the player moves closer, not as an unlock.
+        for(const [key,label,pos,point] of [
+          ['cog-report','报告匣 · 从这里开始',[10.3,1.25,1.65],[9.05,1.4]],
+          ['cog-window-work','三扇窗 · 不同情境的我',[7.5,2.5,-3.05],[7.5,-1.6]],
+          ['cog-shelf','行为书架 · 16本',[5.5,1.6,-2.55],[5.4,-.9]],
+          ['cog-mirror','壁炉镜子',[9.65,2.4,-2.05],[9.35,-.6]],
+          ['cog-lab','合拍实验台',[7.1,1.65,1.95],[7.1,.85]],
+        ]) {
+          this.pin(label,pos,()=>this.onSelect({type:'object',key}),key,point);
+          this.pins.at(-1).el.classList.add('cog-preview-pin');
+        }
+      }
       for (const [key, label, pos, approach] of [
         ["door", "门牌", [-1, 1.6, 3.15], [-1,2.75]],
         ["interest", "兴趣角", [-2.4, 2.2, -2.6], [-1.75,-1.75]],
@@ -536,10 +562,10 @@ export class ForestWorld {
     if (hits.length) {
       let o = hits[0].object;
       while (o) {
-        if(this.mode==='home'&&this.studyOpen&&this.resident?.id===this.state.actor) {
-          let key=o.name==='BehaviorShelf'?'cog-shelf':o.name==='DoorInside'?'cog-door':o.name==='FireplaceMirror'?'cog-mirror':o.name==='LightRecipe'?'cog-sun':o.name.startsWith('LightPool_')?'cog-sun-'+['stability','recognition','autonomy','support'][Number(o.name.slice(-1))]:o.name==='ReportFolio'?'cog-report':o.name==='ShareExit'?'cog-share':/^(LabBench|Reagent_|Reaction)/.test(o.name)?'cog-lab':null;
-          if(o.name.startsWith('StateWindow_'))key='cog-window-'+['natural','work','pressure'][Number(o.name.slice(-1))];
-          if(o.name.startsWith('BehaviorBook_')) {const id=Number(o.name.slice(13));this.interact({key:'cog-shelf',approach:[5.4,-.9],callback:()=>this.onSelect({type:'object',key:'cog-book-'+id})});return;}
+        if(this.mode==='home'&&this.resident?.id===this.state.actor) {
+          let key=o.name==='BehaviorShelf'?'cog-shelf':o.name==='DoorInside'?'cog-door':o.name==='FireplaceMirror'?'cog-mirror':o.name==='LightRecipe'?'cog-sun':/^LightPool_[0-3]$/.test(o.name)?'cog-sun-'+['stability','recognition','autonomy','support'][Number(o.name.slice(-1))]:o.name==='ReportFolio'?'cog-report':o.name==='ShareExit'?'cog-share':/^(LabBench|Reagent_|Reaction)/.test(o.name)?'cog-lab':null;
+          if(/^StateWindow_[0-2]$/.test(o.name))key='cog-window-'+['natural','work','pressure'][Number(o.name.slice(-1))];
+          if(/^BehaviorBook_\d+$/.test(o.name)) {const id=Number(o.name.slice(13));this.interact({key:'cog-shelf',approach:[5.4,-.9],callback:()=>this.onSelect({type:'object',key:'cog-book-'+id})});return;}
           if(key){this.approach(key);return;}
         }
         if(o===this.privateGate&&this.resident?.id===this.state.actor){this.approach('cog-enter');return;}
@@ -717,7 +743,7 @@ export class ForestWorld {
       if(this.metrics.frames%8===0) this.clearSightline();
       this.nearest = null;
       let nearest = .75;
-      const placed = [];
+      const placed = this.mode==='home'?[{x:(pv.x*.5+.5)*this.el.clientWidth,y:(-pv.y*.5+.5)*this.el.clientHeight,width:this.playerLabel.offsetWidth,height:this.playerLabel.offsetHeight}]:[];
       for (const p of this.pins) {
         const phoneMap=this.el.clientWidth<700&&this.mode!=='home'&&this.cameraRig.controls.getDistance()>180;
         const distant=this.mode!=='home' && this.cameraRig.controls.getDistance()>110 && p.key!=='mayor' && !p.own && !p.zone;
@@ -729,21 +755,23 @@ export class ForestWorld {
         let x = (v.x * 0.5 + 0.5) * this.el.clientWidth;
         let y = (-v.y * 0.5 + 0.5) * this.el.clientHeight;
         p.el.hidden = v.z > 1 || v.z < -1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1 || (this.mode==="town" && this.distance(p)>Math.max(17,this.cameraRig.controls.getDistance()));
+        if(this.mode==='home'&&!this.studyOpen&&this.el.clientWidth<700&&['cog-window-work','cog-lab'].includes(p.key))p.el.hidden=true;
         if(p.plot && !p.own && this.mode!=='home' && this.cameraRig.controls.getDistance()<110 && this.distance(p)>21)p.el.hidden=true;
         if(p.zone && this.cameraRig.controls.getDistance()<45)p.el.hidden=true;
         if(phoneMap&&p.zone&&p.key!=='district-2'&&p.key!=='public-zone')p.el.hidden=true;
         if(this.mode==='home'&&this.el.clientWidth<700&&!p.el.hidden){const half=p.el.offsetWidth/2+6;x=Math.max(half,Math.min(this.el.clientWidth-half,x));}
         if (!p.el.hidden && !distant) {
+          const width=p.el.offsetWidth,height=p.el.offsetHeight;
           for (
             let i = 0;
-            i < 4 &&
+            i < (this.mode==='home'?12:4) &&
             placed.some(
-              (q) => Math.abs(q.x - x) < 105 && Math.abs(q.y - y) < 34,
+              (q) => this.mode==='home'?Math.abs(q.x - x) < (q.width+width)/2+6 && Math.abs(q.y - y) < (q.height+height)/2+6:Math.abs(q.x-x)<105 && Math.abs(q.y-y)<34,
             );
             i++
           )
-            y -= 35;
-          placed.push({ x, y });
+            y -= this.mode==='home'?height+7:35;
+          placed.push({ x, y,width,height });
         }
         p.el.style.transform = `translate(-50%,-100%) translate(${x}px,${y}px)`;
         p.el.style.visibility='visible';

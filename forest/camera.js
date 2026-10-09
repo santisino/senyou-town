@@ -79,12 +79,13 @@ export class ForestCamera {
     c.minDistance=home?2.5:3.2;c.maxDistance=home?65:500;c.maxTargetRadius=home?16:140;
     c.cursor.set(0,home?1:0.9,0);
     this.follow=!home&&!overview;
-    const target=home?new T.Vector3(w.studyOpen?7.1:0,1,0):overview?new T.Vector3(0,.9,0):w.pos.clone().add(new T.Vector3(0,.9,0));
+    const ownHome=home&&w.resident?.id===w.state?.actor;
+    const target=home?new T.Vector3(w.studyOpen?7.1:ownHome?3.3:0,1,0):overview?new T.Vector3(0,.9,0):w.pos.clone().add(new T.Vector3(0,.9,0));
     let offset;
     if(overview) {
       const distance=61/Math.tan(T.MathUtils.degToRad(w.camera.fov/2))/Math.min(1,w.camera.aspect)*1.1;
       offset=new T.Vector3(.1,1.4,1).normalize().multiplyScalar(Math.min(490,distance));
-    } else if(home) offset=w.el.clientWidth<700?new T.Vector3(12,13,19):new T.Vector3(9,7.5,12);
+    } else if(home) offset=w.el.clientWidth<700?ownHome&&!w.studyOpen?new T.Vector3(21,22,32):new T.Vector3(12,13,19):ownHome&&!w.studyOpen?new T.Vector3(12,10,16):new T.Vector3(9,7.5,12);
     else offset=w.el.clientWidth<700?new T.Vector3(10,25,28):new T.Vector3(7,12,11);
     c.target.copy(target);w.camera.position.copy(target).add(offset);c.update();
     this.lastPlayer.copy(w.pos);
