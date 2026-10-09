@@ -6,7 +6,7 @@ import { ensureNetwork, checkpoint, netAction, joined, isPublic, activeVillage }
 import { lessonAction } from './lesson-data.js?v=cognition-v2';
 import { connectAction, EXTRA_FIELDS } from './connect-data.js?v=cognition-v2';
 import { entryAction } from './entry-data.js?v=cognition-v2';
-import { cognitionAction } from './cognition-data.js?v=cognition-v2';
+import { cognitionAction } from './cognition-data.js?v=real-report-v1';
 export const STORAGE = "senyou-forest-village-v2";
 const clone = (x) => structuredClone(x);
 const id = () =>

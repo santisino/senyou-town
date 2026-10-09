@@ -36,6 +36,12 @@ header #role-switch,header #preview-return{font-size:12px;padding:8px 12px}
 .role-choices b{font-size:14px;font-weight:500;margin-top:8px;color:#faf8ee;background:#456747;padding:11px 18px;border-radius:9px}
 .role-choices>button:nth-child(2) b{background:#af704f}
 .role-welcome>small{display:block;font-size:12px;line-height:1.9;color:#7b826f}
+.role-report-case{display:block;text-align:left;border:1px solid #d4bb8d;border-radius:14px;background:#f4ecd9;color:#355447;text-decoration:none;padding:18px 24px;margin-bottom:18px}
+.role-report-case strong,.role-report-case span{display:block;line-height:1.8}.role-report-case span{font-size:13px;color:#6b7a62;margin-top:5px}.role-report-case b{display:block;font-size:13px;margin-top:8px;color:#98633f}
+.report-case-link{font-size:12px;padding:8px 12px;border:1px solid #d4bb8d;border-radius:8px;background:#fff8eb;color:#6f623d;text-decoration:none;min-height:36px;display:inline-flex;align-items:center}
+body[data-report-case=true] #role-switch,body[data-report-case=true] #village-entry{display:none}
+body[data-report-case=true] #report-case-reset{font-size:12px;padding:8px 10px}
+@media(max-width:700px){.role-report-case{padding:13px 17px}.role-report-case strong{font-size:14px}.role-report-case span{font-size:12px}.role-report-case span br{display:none}.report-case-link{font-size:11px;padding:6px 8px}body[data-report-case=true] #report-case-reset{font-size:11px;padding:6px 8px}}
 .role-mobile-break{display:none}
 .workspace-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:28px}
 .mayor-main .workspace-actions button{display:grid;justify-items:start;align-content:start;gap:10px;text-align:left;background:#f4f1e6;padding:20px;border:1px solid #dbd9c9;min-height:126px}

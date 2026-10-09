@@ -1,28 +1,29 @@
-import { ForestWorld } from "./world.js?v=study-entry-v1";
-import { createCognitionUI } from './cognition-ui.js?v=cognition-v2';
-import { cognition,progress as cognitionProgress } from './cognition-data.js?v=cognition-v2';
+import { ForestWorld } from "./world.js?v=real-report-v1";
+import { createCognitionUI } from './cognition-ui.js?v=real-report-v1';
+import { cognition,sample,progress as cognitionProgress } from './cognition-data.js?v=real-report-v1';
+import { caseStorage,loadReportCase,freshReportCase } from './real-report-case.js?v=real-report-v1';
 import { QUESTIONS, draftProfile } from "./interview.js?v=neighbors-v1";
 import { GUIDES, PHOTO_SPOTS, photoMap, gardenCheck } from "./space-guides.js?v=neighbors-v1";
 import { createSharing } from "./share-ui.js?v=connections-v2";
 import { createVillageUI } from './village-ui.js?v=cognition-v2';
 import { createLessonUI } from './lesson-ui.js?v=cognition-v2';
 import { entry, soloEmployee, nextDemoResponse } from './entry-data.js?v=cognition-v2';
-import { createEntryUI } from './entry-ui.js?v=roles-v2';
+import { createEntryUI } from './entry-ui.js?v=real-report-v1';
 import { lesson,livePair,PHASES } from './lesson-data.js?v=cognition-v2';
 import { EXTRA_FIELDS } from './connect-data.js?v=cognition-v2';
 import { activeVillage, isPublic, joined, applyArrival, checkpoint } from './villages.js?v=cognition-v2';
 import { FIELDS, SPACES, SHOP, NOTE } from "./data.js?v=village-v4";
 import {
   fresh,
-  load,
-  persist,
+  load as loadState,
+  persist as persistState,
   resident,
   visible,
   canVisit,
   matches,
   transact,
   ready,
-} from "./state.js?v=cognition-v2";
+} from "./state.js?v=real-report-v1";
 import qrcode from "../vendor/qrcode.mjs";
 import { encodeVillage, decodeVillage } from "./config.js";
 import { journey, nextStation, STATIONS } from "./journey.js?v=cognition-v2";
@@ -41,7 +42,11 @@ const $ = (s) => document.querySelector(s),
           "'": "&#39;",
         })[c],
     );
-let state = load(),
+const params = new URLSearchParams(location.search);
+const isReportCase = params.get('case') === 'bestdisc';
+const reportCaseStorage = isReportCase ? caseStorage(globalThis.localStorage) : undefined;
+const persist = s => persistState(s, reportCaseStorage);
+let state = isReportCase ? loadReportCase(reportCaseStorage) : loadState(),
   world,
   homeId = null,
   presenter = false,
@@ -56,7 +61,6 @@ let sharing, villageUI, lessonUI, entryUI, cognitionUI;
 let interviewGroup='interest', interviewIndex=0;
 let demoVisitTimer;
 let demoResponseTimer;
-const params = new URLSearchParams(location.search);
 if (params.get("village") && !params.get('entry') && !state.welcomeSeen)
   state.village.name = params.get("village").slice(0, 30);
 const me = () => resident(state),
@@ -182,6 +186,14 @@ document.addEventListener("keydown", (e) => {
 });
 function hud() {
   entryUI?.sync();
+  document.body.dataset.reportCase=String(isReportCase);
+  if(isReportCase){
+    $('#role-badge').textContent=innerWidth<700?'知微 · 真实案例':'代入知微 · 真实报告案例';
+    $('#report-case-entry').textContent=innerWidth<700?'退出案例':'返回普通体验';
+    $('#report-case-entry').href='?v=real-report-v1';
+    $('#report-case-reset').hidden=false;
+    $('#report-case-reset').textContent=innerWidth<700?'重置案例':'重新体验案例';
+  }
   document.body.dataset.scene = world?.mode || "overview";
   $("#village-name").textContent = `${isPublic(state)?'公共村':'场景村'}｜${state.village.name}`;
   document.title = `蚂蚁森友会 · ${state.village.name}`;
@@ -233,6 +245,15 @@ function hud() {
   }
   document.body.dataset.privateCognition=String(isHome&&homeId===state.actor&&!!world.studyOpen);
   document.body.dataset.ownHome=String(isHome&&homeId===state.actor);
+  if(isReportCase){
+    const real=sample(state)?.real;
+    const title=!isHome?'走进知微的小屋':homeId!==state.actor?'以案例居民的身份，认识伙伴':world.studyOpen?'走近一件物品，读懂报告':'左边是介绍，右边是报告';
+    const copy=!isHome?'点「回我的小屋」或知微的门牌，人物会沿路走过去。房子已为案例准备好，不用先填写。':homeId!==state.actor?'这里只展示邻居的公开介绍。知微的报告与反思不会因为串门而自动交给对方。':world.studyOpen?'三扇窗看真实变化，书架读16个关键词；门牌、镜子与阳光让报告变成可校准的表达。':'先点右侧报告匣看来源，再逛三扇窗、行为书架、壁炉镜子。左侧生活故事为演示补写。';
+    $('#mission').innerHTML=`<div class="step">真实报告 → 小屋 · ${real?'已载入客户报告':'已切换报告来源'}</div><h2>${esc(title)}</h2><p>${esc(copy)}</p>`;
+    if(homeId===state.actor&&isHome)$('#scene-caption').textContent=world.studyOpen?'代入案例本人 · 报告摘编 + 游戏改写 · 原始身份不发布':'知微的待客区 · 协作草稿与生活补写，不代表当事人确认';
+    $('.demo-label').textContent='真实报告摘编 · 化名案例 · 补写内容已标注 · 独立本地记录';
+    document.title='蚂蚁森友会 · 真实 DISC 报告案例';
+  }
   scheduleDemoVisit();
   scheduleDemoResponse();
 }
@@ -383,7 +404,7 @@ function leaveHome() {
 }
 function summary(r, owner = false) {
   const p = owner ? r.profile : profile(r.id).profile;
-  return `${person(r)}<p class="quote">${esc(p.headline || "这里还有一些故事，等待主人慢慢分享。")}</p>${tags(p.traits || "")}<div class="columns"><div>${section("我喜欢的生活", p.interests)}${section("一个小故事", p.story)}${section("最近在探索", p.learning)}</div><div>${section("我愿意搭把手", p.help)}${section("和我一起做事", p.collaboration)}${EXTRA_FIELDS.map(([k,t])=>section(t,p[k])).join("")}${section("最近的心愿", p.wish)}</div></div>`;
+  return `${person(r)}${isReportCase&&r.id==='me'?'<p class="case-origin">案例说明：特质与协作草稿参考客户提供的真实报告；生活故事、兴趣和心愿为演示补写，并非测评推断。完成状态仅用于体验，不代表当事人已确认这些表达。</p>':''}<p class="quote">${esc(p.headline || "这里还有一些故事，等待主人慢慢分享。")}</p>${tags(p.traits || "")}<div class="columns"><div>${section("我喜欢的生活", p.interests)}${section("一个小故事", p.story)}${section("最近在探索", p.learning)}</div><div>${section("我愿意搭把手", p.help)}${section("和我一起做事", p.collaboration)}${EXTRA_FIELDS.map(([k,t])=>section(t,p[k])).join("")}${section("最近的心愿", p.wish)}</div></div>`;
 }
 function visit(id) {
   if (!canVisit(state, id)) {
@@ -926,6 +947,12 @@ document.addEventListener("click", async (e) => {
   }
   try {
     switch (a) {
+      case 'case-reset':
+        if(isReportCase)panel('重新体验这个案例？','只恢复知微的案例记录','<p>将恢复本案例的报告、介绍和互动记录。普通体验里你自己填写的资料不受影响。</p>',button('取消','close')+button('确认，恢复案例','case-reset-confirm','','primary'));
+        break;
+      case 'case-reset-confirm':
+        if(isReportCase&&saveState(freshReportCase())){homeId=null;close();world.town(world.homePoint(state.actor));hud();toast('案例已恢复，你的普通体验记录没有改动。');}
+        break;
       case 'walk-mayor':walkMayor();break;
       case 'mayor-open':
         if(commit({type:'entry:mayor-open'})){close();toast('示例村长：串门时间到了，去公告栏发现一位伙伴吧。');}break;
@@ -1355,6 +1382,7 @@ document.addEventListener("click", async (e) => {
         }
         break;
       case "report":
+        if(isReportCase){close();walkHome(state.actor,()=>world.approach('cog-report'));break;}
         panel(
           "把报告当作起点，不是答案",
           "仅演示授权与确认流程，不上传或解析真实报告。",
@@ -1456,14 +1484,14 @@ async function init() {
     lessonUI=createLessonUI({getState:()=>state,getWorld:()=>world,commit,panel,button,esc,toast,close,walkSpace,walkHome,travel:villageTravel,hostWorkspace:(body,index)=>villageUI.activity(body,index)});
     entryUI=createEntryUI({getState:()=>state,commit,getWorld:()=>world,close,openWorkspace:()=>villageUI.admin(0),hud,invited:params.has('entry')});
     world.setState(state);
-    world.town();
+    world.town(isReportCase?world.homePoint(state.actor):undefined);
     $("#loading").remove();
     hud();
     if(params.has('entry'))commit({type:'entry:choose',role:'employee',invited:true});
     entryUI.resume();scheduleDemoResponse();
     // Read-only diagnostics: no application writes or bypass of public actions.
     window.forestDiagnostics = {
-      build: "study-entry-v1-20261009",
+      build: "real-report-v1-20261009",
       settlement: () => world.plots.map((p,i)=>({plot:i,resident:p.resident,stage:p.stage,visible:Object.entries(p.parts).filter(([,o])=>o.visible).map(([k])=>k)})),
       camera: () => world.cameraRig.snapshot(),
       snapshot: () => structuredClone(state),

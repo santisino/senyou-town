@@ -42,6 +42,9 @@
 .cog-export{width:min(100%,380px);height:auto;display:block;margin:0 auto}
 .cog-world-hint{font-size:12px;line-height:1.65;background:#f3e4c9;padding:12px;margin-top:12px}
 .cog-entry-hint{border-left:3px solid #c78160}.cog-entry-hint strong{display:block;margin-bottom:4px;color:#36553e}
+.case-origin{padding:14px 18px;border-left:3px solid #bb8056;background:#f4ecd9;font-size:13px;line-height:1.8}
+.case-source{margin:20px 0;padding:14px 18px;border:1px solid #d6d4be;border-radius:8px;background:#f3f3e6;font-size:13px;line-height:1.8}
+.case-source summary{cursor:pointer;min-height:36px;line-height:36px;font-weight:600}.case-source dt{font-weight:600;margin-top:14px}.case-source dd{margin:4px 0 0;color:#65725e}
 .world-pin.cog-entry-pin{background:#c78160;color:#fff9ea;border-color:#fff2d5;font-weight:600;box-shadow:0 0 0 4px #f3e4c980,0 3px 14px #263d2520}
 .world-pin.cog-entry-pin:after{background:#c78160}
 .world-pin.cog-preview-pin{border-color:#d4bb8d;background:#fff2d5}

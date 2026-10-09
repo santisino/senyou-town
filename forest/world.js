@@ -6,7 +6,7 @@ import { findPath, journey } from "./journey.js?v=cognition-v2";
 import { ForestCamera } from "./camera.js?v=study-entry-v1";
 import { PLOTS, DISTRICTS, ENTRY, MAYOR, SPACE_POS, address, outdoorWalkable } from "./layout.js";
 import { houseStage } from "./settlement.js?v=cognition-v2";
-import { cognition, DIMS, sample, BOOKS } from './cognition-data.js?v=cognition-v2';
+import { cognition, DIMS, sample, books } from './cognition-data.js?v=real-report-v1';
 export class ForestWorld {
   constructor(el, onSelect) {
     this.el = el;
@@ -340,7 +340,7 @@ export class ForestWorld {
     bubbles.scale.setScalar((focus==='stable'?.3:focus==='resonance'?.7:1)*(1-(c.lab?.checks.length||0)*.08));
     const reactionColor={stable:'#83B98C',resonance:'#91C9A1',bubble:'#E0C56F',delay:'#CF8D78',none:'#A3A6A0'}[focus];
     for(const group of [bubbles,this.cognitionRoom.getObjectByName('ReactionDish')])group.traverse(o=>{if(o.isMesh&&o.material.name!=='cream'){if(!o.userData.reactionMaterial){o.material=o.material.clone();o.userData.reactionMaterial=true;}o.material.color.set(reactionColor);o.material.emissive.set(focus==='resonance'?reactionColor:'#000000');o.material.emissiveIntensity=focus==='resonance'?.3:0;}});
-    BOOKS.forEach((book,i)=>{const o=this.cognitionRoom.getObjectByName('BehaviorBook_'+i);o.rotation.z=c.bookMarks[book.id]?.turned?0:book.kind==='shadow'?.38:0;o.rotation.y=book.kind==='secondary'?Math.PI/2:0;o.scale.setScalar(c.bookMarks[book.id]?.match==='no'?.82:1);if(book.kind==='pressure')o.traverse(child=>{if(child.isMesh&&child.material.name==='water'){if(!child.userData.pressureGlass){child.material=child.material.clone();child.material.transparent=true;child.material.opacity=.55;child.userData.pressureGlass=true;}child.visible=!c.stormUnlocked;}});});
+    books(this.state).forEach((book,i)=>{const o=this.cognitionRoom.getObjectByName('BehaviorBook_'+i);o.rotation.z=c.bookMarks[book.id]?.turned?0:book.kind==='shadow'?.38:0;o.rotation.y=book.kind==='secondary'?Math.PI/2:0;o.scale.setScalar(c.bookMarks[book.id]?.match==='no'?.82:1);if([11,15].includes(i))o.traverse(child=>{if(child.isMesh&&child.material.name==='water'){if(!child.userData.pressureGlass){child.material=child.material.clone();child.material.transparent=true;child.material.opacity=.55;child.userData.pressureGlass=true;}child.visible=book.kind==='pressure'?!c.stormUnlocked:true;}});});
     for(let i=0;i<3;i++) {const window=this.cognitionRoom.getObjectByName('StateWindow_'+i);window.userData.open=c.window===['natural','work','pressure'][i];}
   }
   updateExteriorStyles() {

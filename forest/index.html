@@ -24,8 +24,8 @@
     <link rel="stylesheet" href="./villages.css?v=villages-v2" />
     <link rel="stylesheet" href="./lesson.css?v=connections-v2" />
     <link rel="stylesheet" href="./connect.css?v=connections-v2-r2" />
-    <link rel="stylesheet" href="./entry.css?v=roles-v2" />
-    <link rel="stylesheet" href="./cognition.css?v=study-entry-v1" />
+    <link rel="stylesheet" href="./entry.css?v=real-report-v1" />
+    <link rel="stylesheet" href="./cognition.css?v=real-report-v1" />
     <script type="importmap">
       {
         "imports": {
@@ -41,6 +41,8 @@
       <a class="brand" href="./">森友会<span>一间小屋，慢慢认识一个人</span></a>
       <div class="village-name" id="village-name">百蚂村</div>
       <span id="role-badge"></span>
+      <a class="subtle report-case-link" id="report-case-entry" href="?case=bestdisc&amp;v=real-report-v1">真实报告案例</a>
+      <button class="subtle" id="report-case-reset" data-action="case-reset" hidden>重新体验案例</button>
       <button class="subtle" id="village-entry">村庄</button>
       <button class="subtle" id="mayor-entry">村长工作台</button>
       <button class="subtle" id="teacher-entry" hidden>活动主持</button>
@@ -70,6 +72,6 @@
     <div id="role-root" hidden></div>
     <div id="toast" role="status" aria-live="polite"></div>
     <div class="demo-label">场景交互版 · 虚构居民 · 本地保存</div>
-    <script type="module" src="./app.js?v=study-entry-v1"></script>
+    <script type="module" src="./app.js?v=real-report-v1"></script>
   </body>
 </html>

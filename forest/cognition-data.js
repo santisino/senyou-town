@@ -1,5 +1,6 @@
 // Private cognition belongs to a person, not a village or a public profile.
-// These authored samples illustrate a report; they are NOT a validated DISC engine.
+// Authored samples and one manually checked client report; NOT a validated DISC engine.
+import { BESTDISC_CASE_REPORT, BESTDISC_CASE_BOOKS } from './real-report-data.js?v=real-report-v1';
 export const DIMS=['D','I','S','C'];
 export const REACTIONS=[['stable','稳定反应','差异可以成为分工线索。先说清各自负责什么。'],['resonance','共振反应','起点相近，也要确认是不是理解同一件事。'],['bubble','气泡反应','相近的表面下可能藏着不同标准。把在意点说出来。'],['delay','延迟冒泡','日常和压力下可能不同。先询问触发条件。'],['none','无反应','这一项没有突出线索，不等于不适合合作。']];
 export const STYLES=[['D','瞭望与行动','先看方向，愿意推动第一步'],['I','交流与灵感','从交流中找到新的可能'],['S','安稳与陪伴','在清楚的节奏里持续推进'],['C','专注与工艺','用依据与标准把事情做好']];
@@ -24,6 +25,7 @@ export const BOOKS=[
  ['反复核对','C','pressure','压力很大时，可能不断补充信息，需要明确什么时候已经足够。'],
 ].map(([title,dim,kind,text],i)=>({id:'book-'+i,title,dim,kind,text}));
 export const SAMPLES={
+ 'bestdisc-case':BESTDISC_CASE_REPORT,
  grove:{id:'grove',title:'林间工匠 · 虚构报告 A',natural:[48,60,72,82],work:[62,52,65,88],pressure:[76,35,46,94],lights:[3,2,3,2],
   summary:'常用依据与清楚的安排进入协作，也愿意交流新点子。压力下可能更反复核对。',
   meeting:'先发背景和关键材料；会上先说明需要共同决定什么。',
@@ -41,12 +43,13 @@ const clone=x=>structuredClone(x),fail=m=>{throw Error(m);};
 const text=(v,max=400)=>String(v||'').trim().slice(0,max);
 export function cognition(s,id=s.actor){return s.network?.cognition?.[id]||null;}
 export function sample(s,id=s.actor){return SAMPLES[cognition(s,id)?.reportId]||null;}
+export function books(s,id=s.actor){return sample(s,id)?.real?BESTDISC_CASE_BOOKS:BOOKS;}
 export function recipe(s,id=s.actor){const c=cognition(s,id);if(!c)return '';return LIGHTS.filter((_,i)=>c.lightNeeds[i]>=2).map(x=>x[2]).join('；')||'先询问我当下需要什么支持。';}
 export function progress(s){const c=cognition(s);return ['exterior','windows','shelf','door','mirror','sun','lab'].map(key=>({key,done:!!c?.seen[key]}));}
 function freshCognition(reportId){const r=SAMPLES[reportId];return {version:1,reportId,mix:[...r.natural],seen:{},window:'natural',windowsSeen:[],windowNotes:{},bookMarks:{},stormUnlocked:false,mirror:{answers:['','',''],rating:5,reflection:''},lightNeeds:[...r.lights],lightOn:[true,true,true,true],door:{strength:r.strength,practice:r.practice,suggestion:r.meeting},lab:null};}
 export const QUESTIONS=['最近一次感到压力的具体场景是什么？你首先做了什么？','你当时最在意什么？别人可能怎样理解你的反应？','如果再来一次，你希望怎样表达需要，或得到什么支持？'];
-export function mirrorQuestions(s){const id=sample(s)?.id;return id==='spark'?['最近一次想赶快推进、但伙伴还没准备好时，你具体做了什么？','你急着推动的背后最担心什么？伙伴可能怎样理解你的催促？','下次开始前，你可以先问伙伴哪一个条件，让推动更有支持？']:id==='harbor'?['最近一次已经有些吃力、却仍答应了别人时，发生了什么？','你当时没有说出的顾虑是什么？别人可能以为你完全没问题吗？','下一次答应之前，你想怎样说明自己的容量或需要的支持？']:['最近一次反复核对、迟迟难以下决定时，发生了什么？','你最想确认的依据是什么？伙伴可能怎样理解你的检查？','下一次怎样约定“信息已经足够”的标准，再迈出第一步？'];}
-export function mirrorFeedback(s){const c=cognition(s);if(!c)return '';const a=c.mirror.answers;return a.every(x=>x.trim())?`你记录了「${a[0].slice(0,70)}」。与其急着给自己下结论，可以把「${a[2].slice(0,90)}」变成下一次提前说出的需要。示例报告提示压力下可能出现${sample(s).id==='spark'?'加快推进':sample(s).id==='harbor'?'更谨慎或退让':'反复核对'}；是否符合，以你的经历为准。`:'先记录一次真实经历；这里不依据空白答案猜测你。';}
+export function mirrorQuestions(s){const p=sample(s),id=p?.id;if(p?.real)return p.questions;return id==='spark'?['最近一次想赶快推进、但伙伴还没准备好时，你具体做了什么？','你急着推动的背后最担心什么？伙伴可能怎样理解你的催促？','下次开始前，你可以先问伙伴哪一个条件，让推动更有支持？']:id==='harbor'?['最近一次已经有些吃力、却仍答应了别人时，发生了什么？','你当时没有说出的顾虑是什么？别人可能以为你完全没问题吗？','下一次答应之前，你想怎样说明自己的容量或需要的支持？']:['最近一次反复核对、迟迟难以下决定时，发生了什么？','你最想确认的依据是什么？伙伴可能怎样理解你的检查？','下一次怎样约定“信息已经足够”的标准，再迈出第一步？'];}
+export function mirrorFeedback(s){const c=cognition(s);if(!c)return '';const a=c.mirror.answers;return a.every(x=>x.trim())?`你记录了「${a[0].slice(0,70)}」。与其急着给自己下结论，可以把「${a[2].slice(0,90)}」变成下一次提前说出的需要。${sample(s).real?'案例原报告':'示例报告'}提示压力下可能出现${sample(s).id==='spark'?'加快推进':sample(s).id==='harbor'?'更谨慎或退让':'更谨慎地检查细节'}；是否符合，以你的经历为准。`:'先记录一次真实经历；这里不依据空白答案猜测你。';}
 export function labComparison(s){const c=cognition(s);if(!c?.lab)return null;const a=sample(s),b=SAMPLES[c.lab.partnerReport];if(!a||!b)return null;const differences=a.natural.map((v,i)=>Math.abs(v-b.natural[i]));const max=differences.indexOf(Math.max(...differences));return {a,b,max,dimensions:DIMS.map((dim,i)=>{let type;if(a.natural[i]<55&&b.natural[i]<55)type='无反应';else if((a.natural[i]<55&&a.pressure[i]>=75)||(b.natural[i]<55&&b.pressure[i]>=75))type='延迟冒泡';else if(a.natural[i]>=55&&b.natural[i]>=55)type=Math.abs(a.work[i]-b.work[i])>20?'气泡反应':'共振反应';else type='稳定反应';return {dim,type,a:a.natural[i],b:b.natural[i]};})};}
 export const PRESCRIPTIONS=[
  ['information','信息需求协议','开始前各说清：需要什么信息、多少信息、什么时候足够。','一个人先发关键材料，另一个人确认还差哪一个条件。'],
@@ -59,8 +62,8 @@ export function cognitionAction(original,a){const s=clone(original);s.network.co
  if(a.owner&&a.owner!==s.actor)fail('私人认知区只供本人使用。');
  if(!r?.built||!r.journey?.key)fail('先领取钥匙并搭起自己的小屋。');
  if(a.type==='cog:report'){
-  if(!SAMPLES[a.id])fail('请选择明确标注的虚构报告。');
-  if(!a.confirmed)fail('请确认这是用于体验的示例，不是真实测评。');
+  if(!SAMPLES[a.id])fail('请选择有明确来源的报告案例或虚构示例。');
+  if(!a.confirmed)fail('请确认报告来源，以及这不是你本人的真实测评。');
   if(c&&c.reportId!==a.id&&!a.replace)fail('更换示例会重置私人探索，请先确认。');
   s.network.cognition[s.actor]=c?.reportId===a.id?c:freshCognition(a.id);return s;
  }
@@ -69,7 +72,7 @@ export function cognitionAction(original,a){const s=clone(original);s.network.co
  if(a.type==='cog:mix'){if(!Array.isArray(a.values)||a.values.length!==4||a.values.some(v=>!Number.isFinite(v)||v<0||v>100))fail('四项外观倾向须在 0–100 之间。');c.mix=[...a.values];c.seen.exterior=true;}
  else if(a.type==='cog:window'){if(!WINDOWS.some(x=>x[0]===a.id))fail('找不到这扇窗。');if(a.id==='pressure'&&!a.confirmed)fail('风暴窗需要本人主动开启。');c.window=a.id;if(a.id==='pressure')c.stormUnlocked=true;if(!c.windowsSeen.includes(a.id))c.windowsSeen.push(a.id);c.seen.windows=c.windowsSeen.length===3;}
  else if(a.type==='cog:window-note'){if(!WINDOWS.some(x=>x[0]===a.id))fail('状态不存在。');c.windowNotes[a.id]=text(a.text);}
- else if(a.type==='cog:book'){const b=BOOKS.find(x=>x.id===a.id);if(!b)fail('书不存在');if(b.kind==='pressure'&&!c.stormUnlocked)fail('先由本人开启风暴窗，再阅读压力书。');if(!['yes','part','no'].includes(a.match))fail('请选择像不像我。');c.bookMarks[a.id]={match:a.match,example:text(a.text),turned:!!a.turned};c.seen.shelf=true;}
+ else if(a.type==='cog:book'){const b=books(s).find(x=>x.id===a.id);if(!b)fail('书不存在');if(b.kind==='pressure'&&!c.stormUnlocked)fail('先由本人开启风暴窗，再阅读压力书。');if(!['yes','part','no'].includes(a.match))fail('请选择像不像我。');c.bookMarks[a.id]={match:a.match,example:text(a.text),turned:!!a.turned};c.seen.shelf=true;}
  else if(a.type==='cog:door'){c.door={strength:text(a.strength),practice:text(a.practice),suggestion:text(a.suggestion)};if(!c.door.suggestion)fail('请先留下给同事的一句建议。');c.seen.door=true;}
  else if(a.type==='cog:mirror'){if(!Array.isArray(a.answers)||a.answers.length!==3||a.answers.some(x=>!text(x)))fail('请留下三段反思，或明确写暂不回答。');const rating=Number(a.rating);if(!Number.isInteger(rating)||rating<1||rating>10)fail('自评在 1–10 之间。');c.mirror={answers:a.answers.map(x=>text(x)),rating,reflection:text(a.reflection)};c.seen.mirror=true;}
  else if(a.type==='cog:light'){const i=LIGHTS.findIndex(x=>x[0]===a.id);if(i<0)fail('光源不存在');if(a.on!==undefined)c.lightOn[i]=!!a.on;if(a.need!==undefined){const n=Number(a.need);if(![0,1,2,3].includes(n))fail('选择 0–3 的需要程度。');c.lightNeeds[i]=n;}c.seen.sun=true;}
@@ -85,8 +88,8 @@ export function cognitionAction(original,a){const s=clone(original);s.network.co
   const membership=s.network.villages[s.network.active].members[partner.id];
   if(!partner.confirmed||membership?.membership!=='joined'||s.stage!=='open')fail('开放串门后，选择已入驻的同村伙伴。');
   const real=cognition(s,partner.id);let partnerReport;
-  if(partner.simulated&&a.sampleConsent){partnerReport=partner.id==='lin'?'spark':partner.id==='an'?'harbor':'grove';}
-  else if(real&&membership.cognitionConsent)partnerReport=real.reportId;
+  if(real&&membership.cognitionConsent)partnerReport=real.reportId;
+  else if(partner.simulated&&a.sampleConsent&&!SAMPLES[real?.reportId]?.real){partnerReport=partner.id==='lin'?'spark':partner.id==='an'?'harbor':'grove';}
   else fail('对方尚未授权；可明确选择虚构居民的授权示例，不读取私人报告。');
   if(c.lab?.partner===partner.id&&c.lab.partnerReport===partnerReport)return s;
   c.lab={partner:partner.id,partnerReport,simulated:!!partner.simulated,step:1,prescription:'information',checks:[]};

@@ -19,7 +19,7 @@ export function createEntryUI({getState,commit,getWorld,close,openWorkspace,hud,
       <div class="role-choices">
         <button data-action="entry-choose" data-role="employee"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m4 15 12-10 12 10M7 13v14h18V13M13 27v-9h6v9"/></svg><strong>我是参与活动的同事</strong><span>建自己的小屋，认识新伙伴，<br>一起完成一次协作。</span><b>进入森林</b></button>
         <button data-action="entry-choose" data-role="organizer"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="6" y="7" width="20" height="22" rx="2"/><path d="M11 4v6m10-6v6M10 15h12m-12 6h8"/></svg><strong>我是活动组织者</strong><span>准备村庄，邀请同事，<br>主持活动并查看进度。</span><b>进入村长工作台</b></button>
-      </div><small>可操作的本地 Demo · 虚构邻居 · 不与其他设备同步<br>切换体验角色不会删除已填写的资料。</small>
+      </div><a class="role-report-case" href="?case=bestdisc&amp;v=real-report-v1"><strong>看看一份真实 DISC 报告，如何变成小屋</strong><span>代入知微（化名），探索三扇窗、16本书和协作建议。<br>独立案例，不覆盖你的体验记录。</span><b>进入真实报告案例 →</b></a><small>可操作的本地 Demo · 虚构邻居 · 不与其他设备同步<br>切换体验角色不会删除已填写的资料。</small>
     </section>`;
     root.querySelector('button').focus({preventScroll:true});
   }
@@ -48,7 +48,7 @@ export function createEntryUI({getState,commit,getWorld,close,openWorkspace,hud,
   }
   root.addEventListener('keydown',e=>{
     if(e.key!=='Tab')return;
-    const buttons=[...root.querySelectorAll('button')],first=buttons[0],last=buttons.at(-1);
+    const buttons=[...root.querySelectorAll('button,a[href]')],first=buttons[0],last=buttons.at(-1);
     if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
     else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
   });
